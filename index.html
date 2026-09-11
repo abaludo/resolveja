@@ -12,7 +12,7 @@
     <div class="brand"><span class="brand-mark">✓</span><span>Resolve<span>Já</span></span></div>
     <nav id="publicNav">
       <button class="nav-link active" data-page="home">Início</button>
-      <button class="nav-link" data-page="services">Serviços</button>
+      <button class="nav-link auth-only" data-page="services">Serviços</button>
       <button class="nav-link" data-page="about">Como funciona</button>
       <button class="btn btn-primary" id="loginBtn">Entrar</button>
     </nav>
@@ -30,7 +30,7 @@
           <h1>Seu problema.<br><span>Resolvido.</span></h1>
           <p>Encontre profissionais verificados, confiáveis e especializados para os problemas do seu dia a dia.</p>
           <div class="hero-actions">
-            <button class="btn btn-primary btn-large" onclick="showPage('services')">Encontrar profissional</button>
+            <button class="btn btn-primary btn-large auth-only" onclick="showPage('services')">Encontrar profissional</button>
             <button class="btn btn-outline btn-large" onclick="openRegister()">Quero ser profissional</button>
           </div>
           <div class="trust-row">
@@ -108,6 +108,8 @@
     </div>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
