@@ -54,7 +54,7 @@ async function contactPro(id,name){
     }
     const {data,error}=await sb.from("profissionais").select("id,nome,cidade,estado,profissao,experiencia,descricao,verificado,status").eq("id",id).single();
     if(error||!data){openModal(`<h2>Não foi possível abrir o perfil</h2><div class="notice">Tente novamente.</div>`);return;}
-    openModal(`<h2>${escapeHtml(data.nome)}</h2><p><b>${escapeHtml(data.profissao)}</b> • ${escapeHtml(data.cidade||"")}${data.estado?" - "+escapeHtml(data.estado):""}</p><p>${escapeHtml(data.descricao||"Sem descrição.")}</p><p><b>Experiência:</b> ${escapeHtml(data.experiencia||"Não informado")}</p><div class="notice">🛡️ Para sua segurança, telefone, WhatsApp, @usuários e contatos externos não podem ser compartilhados pelo chat.</div><button class="btn btn-primary" style="width:100%" onclick="requestService('${data.id}')">Solicitar serviço</button>`);
+    openModal(`<h2>${escapeHtml(data.nome)}</h2><p><b>${escapeHtml(data.profissao)}</b> • ${escapeHtml(data.cidade||"")}${data.estado?" - "+escapeHtml(data.estado):""}</p><p>${escapeHtml(data.descricao||"Sem descrição.")}</p><p><b>Experiência:</b> ${escapeHtml(data.experiencia||"Não informado")}</p><div class="notice">🛡️ Para sua segurança, telefone, WhatsApp, @usuários e contatos externos não podem ser compartilhados pelo chat.</div><button class="btn btn-primary" style="width:100%" onclick="requestService('${data.id}')">Solicitar serviço</button><button class="btn btn-outline" style="width:100%;margin-top:8px" onclick="openChat('${data.id}','${String(data.nome||"").replace(/'/g,"\'")}')">Enviar mensagem</button>`);
 }
 function openModal(content){document.getElementById("modalContent").innerHTML=content;document.getElementById("modal").classList.remove("hidden")}
 function closeModal(){document.getElementById("modal").classList.add("hidden")}
@@ -168,10 +168,18 @@ async function routeAuthenticatedUser(user){
     closeModal();
     if(admin){const isMaster=String(admin.cargo||"").toLowerCase()==="master";window.resolveJaIsAdmin=true;enterAdmin(isMaster);return;}
     window.resolveJaIsAdmin=false;
+    const {data:professional}=await sb.from("profissionais").select("id,nome,status,verificado,profissao").eq("usuario_id",user.id).maybeSingle();
+    if(professional){
+        window.resolveJaProfessional=professional;
+        enterProfessional(professional);
+        return;
+    }
+    window.resolveJaProfessional=null;
     const {data:profile}=await sb.from("usuarios").select("nome,tipo").eq("id",user.id).maybeSingle();
     enterClient(profile?.nome||user.user_metadata?.nome||user.email?.split("@")[0]||"Cliente");
 }
 function enterClient(name){
+    window.resolveJaProfessional=null;
     document.getElementById("publicNav").classList.add("hidden");
     document.getElementById("userNav").classList.remove("hidden");
 
@@ -255,6 +263,8 @@ function enterAdmin(master){
     adminPage("dashboard",document.querySelector(".side-btn"));
 }
 function resetLoggedOut(){
+    window.resolveJaProfessional=null;
+    document.getElementById("professionalOnly")?.classList.add("hidden");
     document.getElementById("userNav")?.classList.add("hidden");
     document.getElementById("publicNav")?.classList.remove("hidden");
     document.querySelectorAll(".auth-only,.client-only").forEach(x=>x.style.display="none");
@@ -270,12 +280,103 @@ async function requestService(professionalId){
     if(!sb){requireBackend();return;}
     const {data:{user}}=await sb.auth.getUser();
     if(!user){closeModal();login();return;}
+    const {data:pro}=await sb.from("profissionais").select("id,usuario_id,nome,status,verificado").eq("id",professionalId).single();
+    if(!pro){openModal(`<h2>Profissional não encontrado</h2><div class="notice">Tente novamente.</div>`);return;}
+    if(pro.usuario_id===user.id){
+        openModal(`<h2>Você não pode solicitar este serviço</h2><div class="notice">Um profissional não pode contratar ou solicitar um serviço dele mesmo.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);
+        return;
+    }
     const description=prompt("Descreva o serviço que você precisa:");
     if(description===null)return;
-    const {error}=await sb.from("servicos").insert({cliente_id:user.id,profissional_id:professionalId,descricao:description,status:"solicitado"});
+    if(!description.trim()){openModal(`<h2>Descreva o serviço</h2><div class="notice">Informe o que você precisa antes de enviar.</div>`);return;}
+    const {data:service,error}=await sb.from("servicos").insert({cliente_id:user.id,profissional_id:professionalId,descricao:description.trim(),status:"solicitado"}).select("id").single();
     if(error){openModal(`<h2>Não foi possível solicitar</h2><div class="notice">${escapeHtml(error.message)}</div>`);return;}
-    openModal(`<div class="success-icon">✓</div><h2>Solicitação enviada!</h2><p>O profissional recebeu sua solicitação.</p><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);
+    await ensureConversation(user.id,professionalId);
+    openModal(`<div class="success-icon">✓</div><h2>Solicitação enviada!</h2><p>O profissional recebeu sua solicitação. Agora vocês podem conversar pela aba de Serviços.</p><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);
 }
+
+async function ensureConversation(clienteId,profissionalId){
+    const {data,error}=await sb.from("conversas").upsert({cliente_id:clienteId,profissional_id:profissionalId},{onConflict:"cliente_id,profissional_id"}).select("id").single();
+    return {data,error};
+}
+
+async function openChat(professionalId,name){
+    if(!sb){requireBackend();return;}
+    const {data:{user}}=await sb.auth.getUser();
+    if(!user){login();return;}
+    const {data:pro}=await sb.from("profissionais").select("id,usuario_id,nome,status,verificado").eq("id",professionalId).single();
+    if(!pro)return;
+    if(pro.usuario_id===user.id){
+        openModal(`<h2>Chat indisponível</h2><div class="notice">Você não pode iniciar uma conversa com seu próprio perfil profissional.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);
+        return;
+    }
+    const {data:conversation,error}=await ensureConversation(user.id,professionalId);
+    if(error||!conversation){openModal(`<h2>Não foi possível abrir o chat</h2><div class="notice">${escapeHtml(error?.message||"Tente novamente.")}</div>`);return;}
+    openModal(`<h2>Conversar com ${escapeHtml(name||pro.nome)}</h2><div id="chatMessages" class="chat-messages"><p class="chat-empty">Carregando mensagens...</p></div><div class="chat-compose"><textarea id="chatInput" rows="2" maxlength="1000" placeholder="Digite sua mensagem..."></textarea><button class="btn btn-primary" onclick="sendChatMessage('${conversation.id}')">Enviar mensagem</button></div>`);
+    await loadChatMessages(conversation.id);
+}
+
+async function loadChatMessages(conversationId){
+    const box=document.getElementById("chatMessages");
+    if(!box)return;
+    const {data,error}=await sb.from("mensagens").select("id,remetente_id,conteudo,criado_em").eq("conversa_id",conversationId).order("criado_em",{ascending:true});
+    if(error){box.innerHTML=`<div class="notice">Não foi possível carregar as mensagens.</div>`;return;}
+    const {data:{user}}=await sb.auth.getUser();
+    if(!data?.length){box.innerHTML=`<p class="chat-empty">Nenhuma mensagem ainda. Envie a primeira.</p>`;return;}
+    box.innerHTML=data.map(m=>`<div class="chat-bubble ${m.remetente_id===user.id?"mine":"theirs"}"><p>${escapeHtml(m.conteudo)}</p><small>${new Date(m.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</small></div>`).join("");
+    box.scrollTop=box.scrollHeight;
+}
+
+async function sendChatMessage(conversationId){
+    const input=document.getElementById("chatInput");
+    const text=input?.value.trim();
+    if(!text)return;
+    const {data:{user}}=await sb.auth.getUser();
+    if(!user)return;
+    const {error}=await sb.from("mensagens").insert({conversa_id:conversationId,remetente_id:user.id,conteudo:text});
+    if(error){showNoticeInChat(error.message);return;}
+    input.value="";
+    await loadChatMessages(conversationId);
+}
+function showNoticeInChat(text){
+    const box=document.getElementById("chatMessages");
+    if(box)box.insertAdjacentHTML("beforeend",`<div class="notice">${escapeHtml(text)}</div>`);
+}
+
+async function enterProfessional(pro){
+    document.getElementById("publicNav").classList.add("hidden");
+    document.getElementById("userNav").classList.add("hidden");
+    document.querySelectorAll(".client-only").forEach(x=>x.style.display="none");
+    document.querySelectorAll(".master-only").forEach(x=>x.style.display="none");
+    document.getElementById("professionalOnly")?.classList.remove("hidden");
+    document.getElementById("professionalWelcome").textContent=`Olá, ${String(pro.nome||"Profissional").split(" ")[0]} 👋`;
+    showPage("professionalHome");
+    loadProfessionalServices();
+}
+
+async function loadProfessionalServices(){
+    if(!sb)return;
+    const {data:{user}}=await sb.auth.getUser();
+    if(!user)return;
+    const {data:pro}=await sb.from("profissionais").select("id,nome,profissao,status,verificado").eq("usuario_id",user.id).maybeSingle();
+    const box=document.getElementById("professionalServiceList");
+    if(!box||!pro)return;
+    const {data:convs,error}=await sb.from("conversas").select("id,cliente_id,criado_em").eq("profissional_id",pro.id).order("criado_em",{ascending:false});
+    if(error){box.innerHTML=`<div class="notice">Não foi possível carregar seus chats.</div>`;return;}
+    if(!convs?.length){box.innerHTML=`<div class="panel"><h3>Nenhum chat ainda</h3><p>Quando um cliente entrar em contato, a conversa aparecerá aqui.</p></div>`;return;}
+    const ids=[...new Set(convs.map(c=>c.cliente_id))];
+    const {data:users}=await sb.from("usuarios").select("id,nome").in("id",ids);
+    const names=new Map((users||[]).map(u=>[u.id,u.nome]));
+    box.innerHTML=convs.map(c=>`<button class="professional-chat-row" onclick="openProfessionalChat('${c.id}','${escapeHtml(names.get(c.cliente_id)||"Cliente")}')"><span class="avatar">${escapeHtml((names.get(c.cliente_id)||"C").split(/\s+/).slice(0,2).map(x=>x[0]).join("").toUpperCase())}</span><span><b>${escapeHtml(names.get(c.cliente_id)||"Cliente")}</b><small>Conversa com você • ${new Date(c.criado_em).toLocaleDateString("pt-BR")}</small></span><strong>›</strong></button>`).join("");
+}
+
+async function openProfessionalChat(conversationId,name){
+    const {data:{user}}=await sb.auth.getUser();
+    if(!user)return;
+    openModal(`<h2>Chat com ${escapeHtml(name)}</h2><div id="chatMessages" class="chat-messages"><p class="chat-empty">Carregando mensagens...</p></div><div class="chat-compose"><textarea id="chatInput" rows="2" maxlength="1000" placeholder="Digite sua mensagem..."></textarea><button class="btn btn-primary" onclick="sendChatMessage('${conversationId}')">Enviar mensagem</button></div>`);
+    await loadChatMessages(conversationId);
+}
+
 async function loadProfessionalApplication(id){
     const {data:pro,error}=await sb.from("profissionais").select("id,nome,telefone,email,data_nascimento,cidade,estado,profissao,experiencia,descricao,status,verificado,criado_em").eq("id",id).single();
     if(error||!pro)return null;
