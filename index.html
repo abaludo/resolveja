@@ -27,7 +27,6 @@
           <h1>Seu problema.<br><span>Resolvido.</span></h1>
           <p>Encontre profissionais verificados, confiáveis e especializados para os problemas do seu dia a dia.</p>
           <div class="hero-actions">
-            <button class="btn btn-primary btn-large auth-only" onclick="showPage('services')">Encontrar profissional</button>
             <button class="btn btn-outline btn-large" onclick="openProfessionalRegister()">Quero ser profissional</button>
           </div>
           <div class="trust-row">
@@ -67,32 +66,26 @@
           <button class="client-side-btn client-logout-btn" onclick="logout()">↪ Sair da conta</button>
         </aside>
         <div class="client-content">
-          <div class="client-welcome client-hero-card">
-            <div class="client-hero-copy">
+          <div class="client-welcome">
+            <div>
               <div class="eyebrow">Área do cliente</div>
               <h2 id="clientWelcome">Olá 👋</h2>
-              <p>Encontre profissionais confiáveis para resolver o que você precisa, sem complicação.</p>
-              <div class="client-quick-trust"><span>✓ Verificados</span><span>★ Avaliações reais</span><span>🛡 Plataforma segura</span></div>
+              <p>Encontre alguém confiável para resolver o que você precisa.</p>
             </div>
-            <button class="btn btn-primary btn-large" onclick="showPage('services')">🔎 Encontrar profissional</button>
+            <button class="btn btn-primary" onclick="showPage('services')">Encontrar profissional</button>
           </div>
-          <div class="client-stat-row">
-            <div class="client-stat"><span class="client-stat-icon">✓</span><div><strong>Verificados</strong><small>Profissionais analisados</small></div></div>
-            <div class="client-stat"><span class="client-stat-icon">★</span><div><strong>Avaliações reais</strong><small>Notas de 1 a 10</small></div></div>
-            <div class="client-stat"><span class="client-stat-icon">🛡</span><div><strong>Mais segurança</strong><small>Dados protegidos</small></div></div>
-          </div>
-          <div class="client-section-title"><div><div class="eyebrow">Encontre rapidamente</div><h3>Categorias populares</h3></div><button class="btn btn-ghost" onclick="showPage('services')">Ver todas →</button></div>
           <div class="client-grid">
-            <div class="client-main-card client-main-card-modern">
+            <div class="client-main-card">
+              <h3>Encontre por categoria</h3>
+              <p>Escolha uma categoria e veja profissionais aprovados e verificados pela ResolveJá.</p>
               <div id="clientCategoryGrid" class="mini-category-grid"></div>
             </div>
-            <div class="client-profile-card client-profile-modern">
-              <div class="profile-card-top"><div class="profile-card-avatar">♙</div><div><div class="client-card-label">Minha conta</div><strong>Seu perfil</strong></div></div>
+            <div class="client-profile-card">
+              <div class="client-card-label">Minha conta</div>
               <div id="clientUserInfo" class="client-user-info"></div>
-              <button class="btn btn-outline" style="width:100%;margin-top:18px" onclick="openClientSettings()">⚙ Editar perfil</button>
+              <button class="btn btn-outline" style="width:100%;margin-top:16px" onclick="openClientSettings()">Editar perfil</button>
             </div>
           </div>
-          <div class="client-tip"><span>💡</span><div><strong>Dica para contratar melhor</strong><p>Confira a experiência, a localização e a reputação do profissional antes de solicitar o serviço.</p></div></div>
         </div>
       </div>
     </section>
@@ -117,7 +110,7 @@
     <section id="services" class="page">
       <div class="section-head">
         <div><div class="eyebrow">Encontre ajuda</div><h2>Qual problema você precisa resolver?</h2></div>
-        <div class="search-box"><span>⌕</span><input id="serviceSearch" placeholder="Buscar serviço..." oninput="renderServices()"></div>
+        <div class="services-actions"><button class="btn btn-ghost" onclick="showPage('clientHome');loadClientHome()">← Voltar para início</button><div class="search-box"><span>⌕</span><input id="serviceSearch" placeholder="Buscar serviço..." oninput="renderServices()"></div></div>
       </div>
       <div id="categoryGrid" class="category-grid"></div>
     </section>
