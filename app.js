@@ -11,17 +11,144 @@ const professionals = [
 {name:"Pedro Santos",role:"Encanador",rating:"4,8",jobs:111,city:"Paulista, PE",tags:["Hidráulica","Desentupimento"],initials:"PS"}
 ];
 
-function showPage(id){document.querySelectorAll(".page").forEach(p=>p.classList.remove("active-page"));document.getElementById(id).classList.add("active-page");document.querySelectorAll(".nav-link").forEach(b=>b.classList.toggle("active",b.dataset.page===id));window.scrollTo({top:0,behavior:"smooth"})}
-function renderServices(){const q=(document.getElementById("serviceSearch")?.value||"").toLowerCase();const grid=document.getElementById("categoryGrid");grid.innerHTML=categories.filter(c=>(c[1]+" "+c[2]).toLowerCase().includes(q)).map((c,i)=>`<button class="category" onclick="openProfessionals('${c[1].replace(/'/g,"\\'")}')"><span class="ico">${c[0]}</span><b>${c[1]}</b><small>${c[2]}</small></button>`).join("")}
-function openProfessionals(cat){showPage("professionals");document.getElementById("proTitle").textContent=cat+" — profissionais";renderPros(cat)}
-function renderPros(cat="Profissionais disponíveis"){document.getElementById("proGrid").innerHTML=professionals.map(p=>`<article class="pro-card"><div class="pro-top"><div class="avatar">${p.initials}</div><div><h3>${p.name}</h3><div class="role">${p.role} • ${p.city}</div></div><span class="verified">✓</span></div><div class="rating">★★★★★ <span>${p.rating}</span></div><p>Profissional verificado pela ResolveJá. ${p.jobs} serviços registrados na plataforma.</p><div class="chips">${p.tags.map(t=>`<span class="chip">${t}</span>`).join("")}</div><button class="btn btn-primary" style="width:100%;margin-top:15px" onclick="contactPro('${p.name}')">Ver perfil</button></article>`).join("")}
-function contactPro(name){openModal(`<h2>${name}</h2><p>Este é um protótipo da ResolveJá. No produto real, aqui aparecerá o perfil completo, avaliações verificadas, fotos de serviços, disponibilidade e botão para solicitar serviço.</p><div class="notice">🛡️ Para sua segurança, números de telefone e contatos externos não podem ser compartilhados no chat.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`)}
+const SUPABASE_URL = window.RESOLVEJA_CONFIG?.SUPABASE_URL || "";
+const SUPABASE_KEY = window.RESOLVEJA_CONFIG?.SUPABASE_PUBLISHABLE_KEY || "";
+const supabaseReady = Boolean(SUPABASE_URL && SUPABASE_KEY && window.supabase);
+const sb = supabaseReady ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+function showPage(id){
+    document.querySelectorAll(".page").forEach(p=>p.classList.remove("active-page"));
+    const page=document.getElementById(id);
+    if(!page)return;
+    page.classList.add("active-page");
+    document.querySelectorAll(".nav-link").forEach(b=>b.classList.toggle("active",b.dataset.page===id));
+    window.scrollTo({top:0,behavior:"smooth"});
+}
+function renderServices(){
+    const q=(document.getElementById("serviceSearch")?.value||"").toLowerCase();
+    const grid=document.getElementById("categoryGrid");
+    if(!grid)return;
+    grid.innerHTML=categories.filter(c=>(c[1]+" "+c[2]).toLowerCase().includes(q)).map(c=>`<button class="category" onclick="openProfessionals('${c[1].replace(/'/g,"\\'")}')"><span class="ico">${c[0]}</span><b>${c[1]}</b><small>${c[2]}</small></button>`).join("");
+}
+async function renderPros(cat="Profissionais disponíveis"){
+    const grid=document.getElementById("proGrid");
+    if(!grid)return;
+    let list=[];
+    if(sb){
+        const {data,error}=await sb.from("profissionais").select("id,nome,cidade,estado,profissao,experiencia,descricao,verificado,status").eq("status","aprovado").eq("verificado",true).order("criado_em",{ascending:false});
+        if(!error)list=data||[];
+    }
+    if(!list.length)list=professionals.map(p=>({id:null,nome:p.name,cidade:p.city,profissao:p.role,experiencia:"",descricao:"Profissional verificado pela ResolveJá.",verificado:true,status:"aprovado",rating:p.rating,jobs:p.jobs,tags:p.tags,initials:p.initials}));
+    if(cat && cat!=="Profissionais disponíveis")list=list.filter(p=>String(p.profissao||"").toLowerCase().includes(cat.toLowerCase()));
+    if(!list.length){grid.innerHTML=`<div class="panel"><h3>Nenhum profissional encontrado</h3><p>Não encontramos profissionais aprovados nessa categoria ainda.</p></div>`;return;}
+    grid.innerHTML=list.map(p=>{
+        const initials=(p.nome||"RJ").split(/\s+/).slice(0,2).map(x=>x[0]).join("").toUpperCase();
+        const rating=p.rating||"—";
+        const jobs=p.jobs||0;
+        return `<article class="pro-card"><div class="pro-top"><div class="avatar">${p.initials||initials}</div><div><h3>${escapeHtml(p.nome)}</h3><div class="role">${escapeHtml(p.profissao||"")} • ${escapeHtml(p.cidade||"")}${p.estado?" - "+escapeHtml(p.estado):""}</div></div><span class="verified">✓</span></div><div class="rating">★★★★★ <span>${rating}</span></div><p>${escapeHtml(p.descricao||"Profissional verificado pela ResolveJá.")}</p><div class="chips">${(p.tags||[]).map(t=>`<span class="chip">${escapeHtml(t)}</span>`).join("")}</div><button class="btn btn-primary" style="width:100%;margin-top:15px" onclick="contactPro('${p.id||""}','${String(p.nome||"").replace(/'/g,"\\'")}')">Ver perfil</button></article>`;
+    }).join("");
+}
+function escapeHtml(v){return String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));}
+function openProfessionals(cat){showPage("professionals");document.getElementById("proTitle").textContent=cat+" — profissionais";renderPros(cat);}
+async function contactPro(id,name){
+    if(!sb||!id){
+        openModal(`<h2>${escapeHtml(name)}</h2><p>Este perfil é um exemplo enquanto o banco ainda não possui profissionais aprovados.</p><div class="notice">🛡️ A ResolveJá protege contra compartilhamento de contatos externos.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);return;
+    }
+    const {data,error}=await sb.from("profissionais").select("id,nome,cidade,estado,profissao,experiencia,descricao,verificado,status").eq("id",id).single();
+    if(error||!data){openModal(`<h2>Não foi possível abrir o perfil</h2><div class="notice">Tente novamente.</div>`);return;}
+    openModal(`<h2>${escapeHtml(data.nome)}</h2><p><b>${escapeHtml(data.profissao)}</b> • ${escapeHtml(data.cidade||"")}${data.estado?" - "+escapeHtml(data.estado):""}</p><p>${escapeHtml(data.descricao||"Sem descrição.")}</p><p><b>Experiência:</b> ${escapeHtml(data.experiencia||"Não informado")}</p><div class="notice">🛡️ Para sua segurança, telefone, WhatsApp, @usuários e contatos externos não podem ser compartilhados pelo chat.</div><button class="btn btn-primary" style="width:100%" onclick="requestService('${data.id}')">Solicitar serviço</button>`);
+}
 function openModal(content){document.getElementById("modalContent").innerHTML=content;document.getElementById("modal").classList.remove("hidden")}
 function closeModal(){document.getElementById("modal").classList.add("hidden")}
-function openRegister(){openModal(`<h2>Quero ser profissional</h2><p>Comece seu cadastro na ResolveJá.</p><div class="form-group"><label>Nome completo</label><input placeholder="Seu nome"></div><div class="form-group"><label>Profissão</label><input placeholder="Ex.: Eletricista"></div><div class="form-group"><label>Cidade</label><input placeholder="Sua cidade"></div><div class="notice">Na etapa de verificação, serão solicitados dados adicionais e 5 clientes anteriores para referência. A aprovação é feita pela equipe.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Continuar cadastro</button>`)}
-function login(){openModal(`<h2>Entrar</h2><p>Acesse sua conta de cliente ou o painel administrativo.</p><div class="form-group"><label>Usuário ou e-mail</label><input id="loginUser" placeholder="Digite seu acesso"></div><div class="form-group"><label>Senha</label><input id="loginPass" type="password" placeholder="Digite sua senha"></div><div id="loginError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="doLogin()">Entrar</button><p style="font-size:11px;color:#7a877f;margin-top:15px">Protótipo: a conta administrativa de demonstração usa o usuário <b>ADM</b>.</p>`)}
-function doLogin(){const u=document.getElementById("loginUser").value.trim();const p=document.getElementById("loginPass").value; if(u==="ADM"&&p==="RESOLVEJA"){localStorage.setItem("rj_role","admin");localStorage.setItem("rj_user","ADM");closeModal();enterAdmin(false)}else if(u.toLowerCase()==="mestre"){localStorage.setItem("rj_role","master");localStorage.setItem("rj_user","Conta Mestre");closeModal();enterAdmin(true)}else{const e=document.getElementById("loginError");e.textContent="Acesso inválido. No protótipo, use ADM como usuário administrativo.";e.classList.remove("hidden")}}
+function requireBackend(){if(!supabaseReady){openModal(`<h2>Conecte o Supabase</h2><p>Abra <b>config.js</b> e coloque a URL e a chave publishable do seu projeto Supabase.</p><div class="notice">Nunca coloque a chave service_role no site.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);return false}return true}
+function openRegister(){openModal(`<h2>Crie sua conta</h2><p>Tenha acesso à busca de profissionais, solicitações e avaliações.</p><div class="form-group"><label>Nome completo</label><input id="clientName" placeholder="Seu nome completo"></div><div class="form-group"><label>E-mail</label><input id="clientEmail" type="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="clientPass" type="password" placeholder="Crie uma senha"></div><div id="registerError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="createClientAccount()">Criar minha conta</button><div class="modal-divider">ou</div><button class="btn btn-outline" style="width:100%" onclick="openProfessionalRegister()">Crie uma conta profissional</button>`)}
+async function createClientAccount(){
+    if(!requireBackend())return;
+    const name=document.getElementById("clientName").value.trim(),email=document.getElementById("clientEmail").value.trim(),pass=document.getElementById("clientPass").value;
+    const e=document.getElementById("registerError");
+    if(!name||!email||pass.length<6){e.textContent="Preencha os campos e use uma senha com pelo menos 6 caracteres.";e.classList.remove("hidden");return;}
+    const {data,error}=await sb.auth.signUp({email,password:pass,options:{data:{nome:name,tipo:"cliente"}}});
+    if(error){e.textContent=error.message;e.classList.remove("hidden");return;}
+    if(data.user&&data.session){await ensureUserProfile(data.user,name,"cliente");closeModal();enterClient(name);}
+    else openModal(`<div class="success-icon">✓</div><h2>Conta criada!</h2><p>Se a confirmação de e-mail estiver ativa no Supabase, confirme seu e-mail e depois entre na conta.</p><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);
+}
+function openProfessionalRegister(){openModal(`<h2>Crie uma conta profissional</h2><p>O cadastro passa por análise antes de aparecer para os clientes.</p><div class="form-group"><label>Nome completo</label><input id="proName" placeholder="Seu nome completo"></div><div class="form-group"><label>Telefone</label><input id="proPhone" placeholder="Seu telefone"></div><div class="form-group"><label>E-mail</label><input id="proEmail" type="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="proPass" type="password" placeholder="Crie uma senha"></div><div class="form-group"><label>Data de nascimento</label><input id="proBirth" type="date"></div><div class="form-group"><label>Cidade</label><input id="proCity" placeholder="Ex.: Recife"></div><div class="form-group"><label>Estado</label><input id="proState" placeholder="Ex.: PE"></div><div class="form-group"><label>Profissão</label><input id="proJob" placeholder="Ex.: Eletricista"></div><div class="form-group"><label>Tempo de experiência</label><input id="proExperience" placeholder="Ex.: 5 anos"></div><div class="form-group"><label>Descrição do serviço</label><textarea id="proDescription" rows="3" placeholder="Conte sobre seu trabalho e experiência"></textarea></div>${[1,2,3,4,5].map(i=>`<div class="form-group"><label>Cliente anterior ${i} — nome</label><input id="ref${i}Name" placeholder="Nome do cliente"></div><div class="form-group"><label>Cliente anterior ${i} — telefone</label><input id="ref${i}Phone" placeholder="Telefone do cliente"></div>`).join("")}<div class="notice">A ResolveJá entrará em contato com as 5 referências. O cadastro só será aprovado após análise da equipe.</div><div id="proRegisterError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="submitProfessionalApplication()">Enviar para análise</button>`)}
+async function submitProfessionalApplication(){
+    if(!requireBackend())return;
+    const get=id=>document.getElementById(id)?.value.trim()||"";
+    const values={name:get("proName"),phone:get("proPhone"),email:get("proEmail"),pass:document.getElementById("proPass")?.value||"",birth:get("proBirth"),city:get("proCity"),state:get("proState"),job:get("proJob"),experience:get("proExperience"),description:get("proDescription")};
+    const e=document.getElementById("proRegisterError");
+    const missing=Object.entries(values).some(([k,v])=>k!=="pass"&&!v)||values.pass.length<6;
+    if(missing){e.textContent="Preencha todos os campos e use uma senha com pelo menos 6 caracteres.";e.classList.remove("hidden");return;}
+    for(let i=1;i<=5;i++){if(!get(`ref${i}Name`)||!get(`ref${i}Phone`)){e.textContent=`Preencha o nome e telefone da referência ${i}.`;e.classList.remove("hidden");return;}}
+    const {data,error}=await sb.auth.signUp({email:values.email,password:values.pass,options:{data:{nome:values.name,tipo:"profissional"}}});
+    if(error){e.textContent=error.message;e.classList.remove("hidden");return;}
+    if(!data.session||!data.user){openModal(`<div class="success-icon">✓</div><h2>Cadastro criado</h2><p>Confirme o e-mail enviado pelo Supabase e entre na conta para concluir o envio da candidatura.</p><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);return;}
+    const user=data.user;
+    const profile=await ensureUserProfile(user,values.name,"profissional",values.phone,values.city,values.state);
+    if(profile.error){e.textContent=profile.error.message;e.classList.remove("hidden");return;}
+    const {data:pro,error:proError}=await sb.from("profissionais").insert({usuario_id:user.id,nome:values.name,telefone:values.phone,email:values.email,data_nascimento:values.birth,cidade:values.city,estado:values.state,profissao:values.job,experiencia:values.experience,descricao:values.description,status:"pendente",verificado:false}).select().single();
+    if(proError){e.textContent=proError.message;e.classList.remove("hidden");return;}
+    const refs=[];for(let i=1;i<=5;i++)refs.push({profissional_id:pro.id,nome:get(`ref${i}Name`),telefone:get(`ref${i}Phone`),ordem:i,contato_verificado:false});
+    const {error:refError}=await sb.from("referencias").insert(refs);
+    if(refError){e.textContent=refError.message;e.classList.remove("hidden");return;}
+    closeModal();openModal(`<div class="success-icon">✓</div><h2>Cadastro enviado!</h2><p>Seu cadastro foi enviado para análise. A equipe verificará suas 5 referências antes da aprovação.</p><div class="notice">Você só aparecerá como profissional após a aprovação.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);
+}
+async function ensureUserProfile(user,name,tipo,telefone="",cidade="",estado=""){
+    const {data,error}=await sb.from("usuarios").upsert({id:user.id,nome:name,telefone,cidade,estado,tipo},{onConflict:"id"}).select().single();
+    return {data,error};
+}
+function login(){openModal(`<h2>Entrar</h2><p>Acesse sua conta de cliente ou administrador.</p><div class="form-group"><label>E-mail</label><input id="loginUser" type="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="loginPass" type="password" placeholder="Digite sua senha"></div><div id="loginError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="doLogin()">Entrar</button><div class="modal-divider">Ainda não tem conta?</div><button class="btn btn-outline" style="width:100%" onclick="openRegister()">Crie sua conta</button>`)}
+async function doLogin(){
+    if(!requireBackend())return;
+    const u=document.getElementById("loginUser").value.trim(),p=document.getElementById("loginPass").value,e=document.getElementById("loginError");
+    const {data,error}=await sb.auth.signInWithPassword({email:u,password:p});
+    if(error){e.textContent="E-mail ou senha inválidos.";e.classList.remove("hidden");return;}
+    await routeAuthenticatedUser(data.user);
+}
+async function routeAuthenticatedUser(user){
+    const {data:admin}=await sb.from("administradores").select("cargo,ativo").eq("usuario_id",user.id).eq("ativo",true).maybeSingle();
+    closeModal();
+    if(admin){enterAdmin(admin.cargo.toLowerCase()==="master");return;}
+    const {data:profile}=await sb.from("usuarios").select("nome,tipo").eq("id",user.id).maybeSingle();
+    enterClient(profile?.nome||user.user_metadata?.nome||user.email?.split("@")[0]||"Cliente");
+}
+function enterClient(name){document.getElementById("publicNav").classList.remove("hidden");document.getElementById("userNav").classList.remove("hidden");document.getElementById("welcome").textContent="Olá, "+String(name).split(" ")[0]+"!";document.querySelectorAll(".auth-only").forEach(x=>x.style.display="");document.querySelectorAll(".master-only").forEach(x=>x.style.display="none");showPage("home")}
 function enterAdmin(master){document.getElementById("publicNav").classList.add("hidden");document.getElementById("userNav").classList.remove("hidden");document.getElementById("welcome").textContent=master?"👑 Conta Mestre":"🛡️ ADM";showPage("admin");document.querySelectorAll(".master-only").forEach(x=>x.style.display=master?"block":"none");adminPage("dashboard",document.querySelector(".side-btn"))}
-function logout(){localStorage.removeItem("rj_role");localStorage.removeItem("rj_user");document.getElementById("userNav").classList.add("hidden");document.getElementById("publicNav").classList.remove("hidden");showPage("home")}
-function adminPage(page,el){document.querySelectorAll(".side-btn").forEach(x=>x.classList.remove("active"));if(el)el.classList.add("active");const c=document.getElementById("adminContent");const role=localStorage.getItem("rj_role");const isMaster=role==="master";if(page==="dashboard")c.innerHTML=`<h2>Visão geral</h2><p style="color:#718078">Bem-vindo ao painel da ResolveJá.</p><div class="cards"><div class="metric"><small>Profissionais</small><strong>1.284</strong></div><div class="metric"><small>Usuários</small><strong>8.492</strong></div><div class="metric"><small>Análises pendentes</small><strong>37</strong></div><div class="metric"><small>Denúncias</small><strong>12</strong></div></div><div class="panel"><h3>Atividade recente</h3><table class="table"><tr><th>Hora</th><th>Ação</th><th>Responsável</th><th>Status</th></tr><tr><td>19:41</td><td>Profissional aprovado</td><td>ADM</td><td><span class="status">Concluído</span></td></tr><tr><td>19:32</td><td>Denúncia recebida</td><td>Sistema</td><td><span class="status">Em análise</span></td></tr><tr><td>19:20</td><td>Avaliação sinalizada</td><td>ADM</td><td><span class="status">Concluído</span></td></tr></table></div>`;else if(page==="analyses")c.innerHTML=`<h2>Análises</h2><div class="panel"><h3>Fila de verificação</h3><table class="table"><tr><th>Profissional</th><th>Categoria</th><th>Referências</th><th>Status</th></tr>${["João Oliveira","Fernanda Costa","Lucas Alves","Bruno Melo"].map((n,i)=>`<tr><td>${n}</td><td>${["Eletricista","Diarista","Mecânico","Encanador"][i]}</td><td>${5}/5</td><td><span class="status">${i?"Aguardando":"Pronto para análise"}</span></td></tr>`).join("")}</table></div>`;else if(page==="logs")c.innerHTML=`<h2>Registro de administradores</h2><p style="color:#718078">Auditoria das ações realizadas dentro do painel.</p><div class="panel"><table class="table"><tr><th>Data/hora</th><th>Administrador</th><th>Ação</th><th>Detalhes</th></tr><tr><td>10/09/2026 19:41</td><td>ADM</td><td>Aprovação</td><td>Profissional aprovado</td></tr><tr><td>10/09/2026 19:20</td><td>ADM</td><td>Avaliação</td><td>Avaliação sinalizada para análise</td></tr><tr><td>10/09/2026 18:54</td><td>ADM</td><td>Suspensão</td><td>Spam detectado — 5 minutos</td></tr></table></div>`;else if(page==="admins")c.innerHTML=isMaster?`<h2>Administradores</h2><button class="btn btn-primary" onclick="openModal('<h2>Novo administrador</h2><div class=\\'form-group\\'><label>Nome</label><input placeholder=\\'Nome do administrador\\'></div><div class=\\'form-group\\'><label>Usuário</label><input placeholder=\\'Usuário\\'></div><button class=\\'btn btn-primary\\' style=\\'width:100%\\' onclick=\\'closeModal()\\'>Criar conta</button>')">+ Criar administrador</button><div class="panel"><table class="table"><tr><th>Nome</th><th>Usuário</th><th>Permissão</th><th>Status</th></tr><tr><td>Administrador principal</td><td>ADM</td><td>Administrador</td><td><span class="status">Ativo</span></td></tr></table></div>`:`<h2>Acesso restrito</h2><div class="notice">Somente a Conta Mestre pode gerenciar administradores.</div>`;else c.innerHTML=`<h2>${page==="professionals"?"Profissionais":page==="users"?"Usuários":page==="reports"?"Denúncias":"Configurações"}</h2><div class="panel"><p style="color:#718078">Área preparada para a implementação completa deste módulo.</p><button class="btn btn-primary">Abrir módulo</button></div>`}
-document.getElementById("loginBtn").onclick=login;document.getElementById("logoutBtn").onclick=logout;document.querySelectorAll(".nav-link").forEach(b=>b.onclick=()=>showPage(b.dataset.page));renderServices();renderPros();if(localStorage.getItem("rj_role"))enterAdmin(localStorage.getItem("rj_role")==="master");
+async function logout(){if(sb)await sb.auth.signOut();document.getElementById("userNav").classList.add("hidden");document.getElementById("publicNav").classList.remove("hidden");document.querySelectorAll(".auth-only").forEach(x=>x.style.display="none");showPage("home")}
+async function requestService(professionalId){
+    if(!sb){requireBackend();return;}
+    const {data:{user}}=await sb.auth.getUser();
+    if(!user){closeModal();login();return;}
+    const description=prompt("Descreva o serviço que você precisa:");
+    if(description===null)return;
+    const {error}=await sb.from("servicos").insert({cliente_id:user.id,profissional_id:professionalId,descricao:description,status:"solicitado"});
+    if(error){openModal(`<h2>Não foi possível solicitar</h2><div class="notice">${escapeHtml(error.message)}</div>`);return;}
+    openModal(`<div class="success-icon">✓</div><h2>Solicitação enviada!</h2><p>O profissional recebeu sua solicitação.</p><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);
+}
+function analyzeApplication(id){openModal(`<h2>Análise do profissional</h2><p>As candidaturas reais ficam protegidas pelo RLS e serão carregadas do banco quando o módulo administrativo seguro estiver conectado.</p><div class="notice">A aprovação definitiva deve ocorrer no backend/Edge Function, nunca por localStorage.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`)}
+async function adminPage(page,el){
+    document.querySelectorAll(".side-btn").forEach(x=>x.classList.remove("active"));if(el)el.classList.add("active");
+    const c=document.getElementById("adminContent");
+    if(page==="dashboard")c.innerHTML=`<h2>Visão geral</h2><p style="color:#718078">Painel administrativo da ResolveJá.</p><div class="cards"><div class="metric"><small>Banco</small><strong>Online</strong></div><div class="metric"><small>RLS</small><strong>Ativo</strong></div><div class="metric"><small>Verificação</small><strong>5 referências</strong></div><div class="metric"><small>Avaliações</small><strong>1–10</strong></div></div>`;
+    else if(page==="analyses")c.innerHTML=`<h2>Análises</h2><p style="color:#718078">As candidaturas reais serão exibidas aqui após a criação do módulo administrativo seguro.</p><div class="panel"><h3>Fila de verificação</h3><p>O ADM precisa validar as 5 referências antes de alterar o status para aprovado.</p></div>`;
+    else if(page==="professionals")c.innerHTML=`<h2>Profissionais</h2><div class="panel"><p>Profissionais aprovados e verificados.</p></div>`;
+    else if(page==="users")c.innerHTML=`<h2>Usuários</h2><div class="panel"><p>Gerenciamento de contas de clientes.</p></div>`;
+    else if(page==="reports")c.innerHTML=`<h2>Denúncias</h2><div class="panel"><p>Denúncias aguardando revisão.</p></div>`;
+    else if(page==="logs")c.innerHTML=`<h2>Registros</h2><div class="panel"><p>Auditoria administrativa protegida por RLS.</p></div>`;
+    else if(page==="admins")c.innerHTML=`<h2>Administradores</h2><div class="panel"><p>Somente a Conta Mestre deve criar administradores por operação administrativa segura.</p></div>`;
+    else c.innerHTML=`<h2>Configurações</h2><div class="panel"><p>Configurações da plataforma e da conta.</p></div>`;
+}
+async function boot(){
+    renderServices();
+    await renderPros();
+    document.querySelectorAll(".auth-only").forEach(x=>x.style.display="none");
+    if(!sb)return;
+    const {data:{session}}=await sb.auth.getSession();
+    if(session?.user)await routeAuthenticatedUser(session.user);
+    sb.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT")logout();});
+}
+document.getElementById("loginBtn").onclick=login;
+document.getElementById("logoutBtn").onclick=logout;
+document.querySelectorAll(".nav-link").forEach(b=>b.onclick=()=>{if(b.classList.contains("auth-only")&&!sb)return;showPage(b.dataset.page)});
+boot();
