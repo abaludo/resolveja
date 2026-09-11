@@ -61,37 +61,77 @@ async function contactPro(id,name){
 function openModal(content){document.getElementById("modalContent").innerHTML=content;document.getElementById("modal").classList.remove("hidden")}
 function closeModal(){document.getElementById("modal").classList.add("hidden")}
 function requireBackend(){if(!supabaseReady){openModal(`<h2>Conecte o Supabase</h2><p>Abra <b>config.js</b> e coloque a URL e a chave publishable do seu projeto Supabase.</p><div class="notice">Nunca coloque a chave service_role no site.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);return false}return true}
-function openRegister(){openModal(`<h2>Crie sua conta</h2><p>Tenha acesso à busca de profissionais, solicitações e avaliações.</p><div class="form-group"><label>Nome completo</label><input id="clientName" placeholder="Seu nome completo"></div><div class="form-group"><label>E-mail</label><input id="clientEmail" type="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="clientPass" type="password" placeholder="Crie uma senha"></div><div id="registerError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="createClientAccount()">Criar minha conta</button><div class="modal-divider">ou</div><button class="btn btn-outline" style="width:100%" onclick="openProfessionalRegister()">Crie uma conta profissional</button>`)}
+let pendingClientSignup=null;
+let pendingProfessionalSignup=null;
+
+function openRegister(){openModal(`<h2>Crie sua conta</h2><p>Tenha acesso à busca de profissionais, solicitações e avaliações.</p><div class="form-group"><label>Nome completo</label><input id="clientName" placeholder="Seu nome completo"></div><div class="form-group"><label>E-mail</label><input id="clientEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="clientPass" type="password" autocomplete="new-password" placeholder="Crie uma senha"></div><div id="registerError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="createClientAccount()">Criar minha conta</button><div class="modal-divider">ou</div><button class="btn btn-outline" style="width:100%" onclick="openProfessionalRegister()">Crie uma conta profissional</button>`) }
+
+function openOtpVerification(email,kind){
+    const title=kind==="professional"?"Confirme seu e-mail profissional":"Confirme seu e-mail";
+    openModal(`<div class="success-icon">✉</div><h2>${title}</h2><p>Enviamos um <b>código de 6 dígitos</b> para <b>${escapeHtml(email)}</b>. Digite o código recebido no Gmail.</p><div class="form-group"><label>Código de confirmação</label><input id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"></div><div id="otpError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="verifySignupOtp('${kind}')">Confirmar código</button><button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="resendSignupOtp('${escapeHtml(email)}')">Enviar outro código</button>`);
+}
+
 async function createClientAccount(){
     if(!requireBackend())return;
     const name=document.getElementById("clientName").value.trim(),email=document.getElementById("clientEmail").value.trim(),pass=document.getElementById("clientPass").value;
     const e=document.getElementById("registerError");
     if(!name||!email||pass.length<6){e.textContent="Preencha os campos e use uma senha com pelo menos 6 caracteres.";e.classList.remove("hidden");return;}
+    pendingClientSignup={name,email,pass};
     const {data,error}=await sb.auth.signUp({email,password:pass,options:{data:{nome:name,tipo:"cliente"}}});
-    if(error){e.textContent=error.message;e.classList.remove("hidden");return;}
-    if(data.user&&data.session){await ensureUserProfile(data.user,name,"cliente");closeModal();enterClient(name);}
-    else openModal(`<div class="success-icon">✓</div><h2>Conta criada!</h2><p>Se a confirmação de e-mail estiver ativa no Supabase, confirme seu e-mail e depois entre na conta.</p><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);
+    if(error){pendingClientSignup=null;e.textContent=error.message;e.classList.remove("hidden");return;}
+    if(data.user&&data.session){await ensureUserProfile(data.user,name,"cliente");closeModal();enterClient(name);return;}
+    openOtpVerification(email,"client");
 }
-function openProfessionalRegister(){openModal(`<h2>Crie uma conta profissional</h2><p>O cadastro passa por análise antes de aparecer para os clientes.</p><div class="form-group"><label>Nome completo</label><input id="proName" placeholder="Seu nome completo"></div><div class="form-group"><label>Telefone</label><input id="proPhone" placeholder="Seu telefone"></div><div class="form-group"><label>E-mail</label><input id="proEmail" type="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="proPass" type="password" placeholder="Crie uma senha"></div><div class="form-group"><label>Data de nascimento</label><input id="proBirth" type="date"></div><div class="form-group"><label>Cidade</label><input id="proCity" placeholder="Ex.: Recife"></div><div class="form-group"><label>Estado</label><input id="proState" placeholder="Ex.: PE"></div><div class="form-group"><label>Profissão</label><input id="proJob" placeholder="Ex.: Eletricista"></div><div class="form-group"><label>Tempo de experiência</label><input id="proExperience" placeholder="Ex.: 5 anos"></div><div class="form-group"><label>Descrição do serviço</label><textarea id="proDescription" rows="3" placeholder="Conte sobre seu trabalho e experiência"></textarea></div>${[1,2,3,4,5].map(i=>`<div class="form-group"><label>Cliente anterior ${i} — nome</label><input id="ref${i}Name" placeholder="Nome do cliente"></div><div class="form-group"><label>Cliente anterior ${i} — telefone</label><input id="ref${i}Phone" placeholder="Telefone do cliente"></div>`).join("")}<div class="notice">A ResolveJá entrará em contato com as 5 referências. O cadastro só será aprovado após análise da equipe.</div><div id="proRegisterError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="submitProfessionalApplication()">Enviar para análise</button>`)}
+
+function openProfessionalRegister(){openModal(`<h2>Crie uma conta profissional</h2><p>O cadastro passa por análise antes de aparecer para os clientes.</p><div class="form-group"><label>Nome completo</label><input id="proName" placeholder="Seu nome completo"></div><div class="form-group"><label>Telefone</label><input id="proPhone" placeholder="Seu telefone"></div><div class="form-group"><label>E-mail</label><input id="proEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="proPass" type="password" autocomplete="new-password" placeholder="Crie uma senha"></div><div class="form-group"><label>Data de nascimento</label><input id="proBirth" type="date"></div><div class="form-group"><label>Cidade</label><input id="proCity" placeholder="Ex.: Recife"></div><div class="form-group"><label>Estado</label><input id="proState" maxlength="2" placeholder="Ex.: PE"></div><div class="form-group"><label>Profissão</label><input id="proJob" placeholder="Ex.: Eletricista"></div><div class="form-group"><label>Tempo de experiência</label><input id="proExperience" placeholder="Ex.: 5 anos"></div><div class="form-group"><label>Descrição do serviço</label><textarea id="proDescription" rows="3" placeholder="Conte sobre seu trabalho e experiência"></textarea></div>${[1,2,3,4,5].map(i=>`<div class="reference-card"><b>Cliente anterior ${i}</b><div class="form-group"><label>Nome</label><input id="ref${i}Name" placeholder="Nome do cliente"></div><div class="form-group"><label>Telefone</label><input id="ref${i}Phone" inputmode="tel" placeholder="Telefone do cliente"></div></div>`).join("")}<div class="notice">A ResolveJá entrará em contato com as 5 referências. O cadastro só será aprovado após análise da equipe.</div><div id="proRegisterError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="submitProfessionalApplication()">Enviar para análise</button>`) }
+
 async function submitProfessionalApplication(){
     if(!requireBackend())return;
     const get=id=>document.getElementById(id)?.value.trim()||"";
-    const values={name:get("proName"),phone:get("proPhone"),email:get("proEmail"),pass:document.getElementById("proPass")?.value||"",birth:get("proBirth"),city:get("proCity"),state:get("proState"),job:get("proJob"),experience:get("proExperience"),description:get("proDescription")};
+    const values={name:get("proName"),phone:get("proPhone"),email:get("proEmail"),pass:document.getElementById("proPass")?.value||"",birth:get("proBirth"),city:get("proCity"),state:get("proState").toUpperCase(),job:get("proJob"),experience:get("proExperience"),description:get("proDescription")};
     const e=document.getElementById("proRegisterError");
     const missing=Object.entries(values).some(([k,v])=>k!=="pass"&&!v)||values.pass.length<6;
     if(missing){e.textContent="Preencha todos os campos e use uma senha com pelo menos 6 caracteres.";e.classList.remove("hidden");return;}
-    for(let i=1;i<=5;i++){if(!get(`ref${i}Name`)||!get(`ref${i}Phone`)){e.textContent=`Preencha o nome e telefone da referência ${i}.`;e.classList.remove("hidden");return;}}
+    const refs=[];for(let i=1;i<=5;i++){const name=get(`ref${i}Name`),phone=get(`ref${i}Phone`);if(!name||!phone){e.textContent=`Preencha o nome e telefone da referência ${i}.`;e.classList.remove("hidden");return;}refs.push({nome:name,telefone:phone,ordem:i,contato_verificado:false});}
+    pendingProfessionalSignup={values,refs};
     const {data,error}=await sb.auth.signUp({email:values.email,password:values.pass,options:{data:{nome:values.name,tipo:"profissional"}}});
+    if(error){pendingProfessionalSignup=null;e.textContent=error.message;e.classList.remove("hidden");return;}
+    if(data.session){await finishProfessionalSignup(data.user);return;}
+    openOtpVerification(values.email,"professional");
+}
+
+async function verifySignupOtp(kind){
+    const code=document.getElementById("otpCode")?.value.trim();
+    const e=document.getElementById("otpError");
+    const pending=kind==="professional"?pendingProfessionalSignup:pendingClientSignup;
+    if(!pending){e.textContent="Esta confirmação expirou. Recomece o cadastro.";e.classList.remove("hidden");return;}
+    const email=kind==="professional"?pending.values.email:pending.email;
+    if(!/^\d{6}$/.test(code)){e.textContent="Digite o código de 6 dígitos recebido no Gmail.";e.classList.remove("hidden");return;}
+    const {data,error}=await sb.auth.verifyOtp({email,token:code,type:"signup"});
+    if(error){e.textContent="Código inválido ou expirado. Solicite outro código e tente novamente.";e.classList.remove("hidden");return;}
+    if(kind==="professional") await finishProfessionalSignup(data.user);
+    else {await ensureUserProfile(data.user,pending.name,"cliente");pendingClientSignup=null;closeModal();enterClient(pending.name);}
+}
+
+async function resendSignupOtp(email){
+    const {error}=await sb.auth.resend({type:"signup",email});
+    const e=document.getElementById("otpError");
     if(error){e.textContent=error.message;e.classList.remove("hidden");return;}
-    if(!data.session||!data.user){openModal(`<div class="success-icon">✓</div><h2>Cadastro criado</h2><p>Confirme o e-mail enviado pelo Supabase e entre na conta para concluir o envio da candidatura.</p><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);return;}
-    const user=data.user;
-    const profile=await ensureUserProfile(user,values.name,"profissional",values.phone,values.city,values.state);
-    if(profile.error){e.textContent=profile.error.message;e.classList.remove("hidden");return;}
-    const {data:pro,error:proError}=await sb.from("profissionais").insert({usuario_id:user.id,nome:values.name,telefone:values.phone,email:values.email,data_nascimento:values.birth,cidade:values.city,estado:values.state,profissao:values.job,experiencia:values.experience,descricao:values.description,status:"pendente",verificado:false}).select().single();
-    if(proError){e.textContent=proError.message;e.classList.remove("hidden");return;}
-    const refs=[];for(let i=1;i<=5;i++)refs.push({profissional_id:pro.id,nome:get(`ref${i}Name`),telefone:get(`ref${i}Phone`),ordem:i,contato_verificado:false});
+    e.textContent="Novo código enviado. Verifique o Gmail.";e.classList.remove("hidden");
+}
+
+async function finishProfessionalSignup(user){
+    const pending=pendingProfessionalSignup;
+    if(!pending)return;
+    const v=pending.values;
+    const profile=await ensureUserProfile(user,v.name,"profissional",v.phone,v.city,v.state);
+    if(profile.error){const e=document.getElementById("otpError")||document.getElementById("proRegisterError");e.textContent=profile.error.message;e.classList.remove("hidden");return;}
+    const {data:pro,error:proError}=await sb.from("profissionais").insert({usuario_id:user.id,nome:v.name,telefone:v.phone,email:v.email,data_nascimento:v.birth,cidade:v.city,estado:v.state,profissao:v.job,experiencia:v.experience,descricao:v.description,status:"pendente",verificado:false}).select().single();
+    if(proError){const e=document.getElementById("otpError")||document.getElementById("proRegisterError");e.textContent=proError.message;e.classList.remove("hidden");return;}
+    const refs=pending.refs.map(r=>({...r,profissional_id:pro.id}));
     const {error:refError}=await sb.from("referencias").insert(refs);
-    if(refError){e.textContent=refError.message;e.classList.remove("hidden");return;}
+    if(refError){const e=document.getElementById("otpError")||document.getElementById("proRegisterError");e.textContent=refError.message;e.classList.remove("hidden");return;}
+    pendingProfessionalSignup=null;
     closeModal();openModal(`<div class="success-icon">✓</div><h2>Cadastro enviado!</h2><p>Seu cadastro foi enviado para análise. A equipe verificará suas 5 referências antes da aprovação.</p><div class="notice">Você só aparecerá como profissional após a aprovação.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);
 }
 async function ensureUserProfile(user,name,tipo,telefone="",cidade="",estado=""){
