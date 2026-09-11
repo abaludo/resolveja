@@ -16,10 +16,7 @@
       <button class="btn btn-outline" id="registerBtn">Criar conta</button>
       <button class="btn btn-primary" id="loginBtn">Entrar</button>
     </nav>
-    <div id="userNav" class="hidden">
-      <span id="welcome"></span>
-      <button class="btn btn-ghost" id="logoutBtn">Sair</button>
-    </div>
+    <div id="userNav" class="hidden"><span id="welcome"></span></div>
   </header>
 
   <main>
@@ -67,6 +64,7 @@
           <button class="client-side-btn" onclick="showPage('services')">⌕ Encontrar profissional</button>
           <button class="client-side-btn" onclick="showPage('professionals');renderPros()">✓ Profissionais</button>
           <button class="client-side-btn" onclick="openClientSettings()">⚙ Configurações</button>
+          <button class="client-side-btn client-logout-btn" onclick="logout()">↪ Sair da conta</button>
         </aside>
         <div class="client-content">
           <div class="client-welcome">
@@ -101,7 +99,7 @@
         <div class="settings-grid">
           <div class="form-group"><label>Nome completo</label><input id="settingsName" placeholder="Seu nome"></div>
           <div class="form-group"><label>E-mail</label><input id="settingsEmail" type="email" disabled></div>
-          <div class="form-group"><label>Telefone</label><input id="settingsPhone" inputmode="tel" placeholder="Seu telefone"></div>
+          <div class="form-group"><label>Telefone</label><input id="settingsPhone" inputmode="tel" disabled placeholder="Seu telefone"><small class="field-help">O telefone não pode ser alterado nas configurações.</small></div>
           <div class="form-group"><label>Cidade</label><input id="settingsCity" placeholder="Sua cidade"></div>
           <div class="form-group"><label>Estado</label><input id="settingsState" maxlength="2" placeholder="UF"></div>
         </div>
@@ -146,6 +144,7 @@
           <button class="side-btn" onclick="adminPage('logs',this)">▤ Registros</button>
           <button class="side-btn master-only" onclick="adminPage('admins',this)">♛ Administradores</button>
           <button class="side-btn" onclick="adminPage('settings',this)">⚙ Configurações</button>
+          <button class="side-btn admin-logout-btn" onclick="logout()">↪ Sair da conta</button>
         </aside>
         <div class="admin-content" id="adminContent"></div>
       </div>
