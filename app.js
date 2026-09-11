@@ -59,7 +59,8 @@ async function contactPro(id,name){
 
 function normalizeDigits(v){return String(v||"").replace(/\D/g,"");}
 function looksLikeFakeNumber(v){
-    const d=normalizeDigits(v);
+    let d=normalizeDigits(v);
+    if(d.startsWith("55")&&d.length===13)d=d.slice(2);
     if(!d)return false;
     if(/^([0-9])\1+$/.test(d))return true;
     if(d.length>=6 && /^(0123456789|1234567890|9876543210)$/.test(d))return true;
@@ -67,7 +68,8 @@ function looksLikeFakeNumber(v){
     return false;
 }
 function isValidBrazilPhone(v){
-    const d=normalizeDigits(v);
+    let d=normalizeDigits(v);
+    if(d.startsWith("55")&&d.length===13)d=d.slice(2);
     return d.length===10||d.length===11;
 }
 function isValidCep(v){
@@ -111,6 +113,29 @@ function requireBackend(){if(!supabaseReady){openModal(`<h2>Conecte o Supabase</
 let pendingClientSignup=null;
 let pendingProfessionalSignup=null;
 
+function markField(id,valid){const el=document.getElementById(id);if(!el)return;el.classList.toggle("field-invalid",!valid);el.classList.toggle("field-valid",valid);}
+function onlyLettersValue(value){return /^[A-Za-zÀ-ÿ\s.'-]+$/.test(String(value||"").trim());}
+function onlyNumberValue(value){return /^\d+$/.test(String(value||"").replace(/\s/g,""));}
+function maskBrazilPhone(value){let d=String(value||"").replace(/\D/g,"").slice(0,13);if(d.startsWith("55"))d=d.slice(2);d=d.slice(0,11);let out="+55 ";if(d.length){out+=d.slice(0,2);if(d.length>=2)out+=" ";}if(d.length>2){out+=d.slice(2,3);if(d.length>=3)out+=" ";}if(d.length>3){out+=d.slice(3,7);if(d.length>=7)out+="-";}if(d.length>7)out+=d.slice(7,11);return out;}
+function wireProfessionalFieldRules(){
+ const textIds=["proName","proCity","proState","proJob","ref1Name","ref2Name","ref3Name","ref4Name","ref5Name"];
+ const numericIds=["proBirth","proExperienceYears"];
+ textIds.forEach(id=>{const el=document.getElementById(id);if(!el)return;el.addEventListener("input",()=>{if(id==="proState")el.value=el.value.replace(/[^A-Za-zÀ-ÿ]/g,"").slice(0,2).toUpperCase();else el.value=el.value.replace(/[0-9]/g,"");markField(id,el.value.trim()!==""&&onlyLettersValue(el.value));});});
+ ["proPhone","ref1Phone","ref2Phone","ref3Phone","ref4Phone","ref5Phone"].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.setAttribute("inputmode","tel");el.setAttribute("maxlength","18");el.addEventListener("input",()=>{el.value=maskBrazilPhone(el.value);markField(id,isValidBrazilPhone(el.value));});});
+ const cep=document.getElementById("proCep");if(cep){cep.addEventListener("input",()=>{cep.value=cep.value.replace(/\D/g,"").slice(0,8).replace(/^(\d{5})(\d)/,"$1-$2");markField("proCep",isValidCep(cep.value));if(cep.value.replace(/\D/g,"").length===8)lookupCep(cep.value);});}
+ const state=document.getElementById("proState");if(state)state.addEventListener("input",()=>markField("proState",/^[A-Z]{2}$/.test(state.value)));
+ ["proExperience","proNumber"].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.addEventListener("input",()=>{el.value=el.value.replace(/\D/g,"");markField(id,el.value.trim()!=="");});});
+}
+async function lookupCep(value){const cep=String(value).replace(/\D/g,"");if(cep.length!==8)return;const status=document.getElementById("cepStatus");try{if(status)status.textContent="Buscando endereço...";const r=await fetch(`https://viacep.com.br/ws/${cep}/json/`);const data=await r.json();if(data.erro){markField("proCep",false);if(status)status.textContent="CEP não encontrado.";return;}const address=document.getElementById("proAddress"),city=document.getElementById("proCity"),state=document.getElementById("proState"),district=document.getElementById("proDistrict");if(address)address.value=data.logradouro||"";if(district)district.value=data.bairro||"";if(city)city.value=data.localidade||"";if(state)state.value=data.uf||"";markField("proCep",true);markField("proCity",!!data.localidade);markField("proState",!!data.uf);if(status)status.textContent=`Endereço encontrado: ${data.logradouro||""}${data.bairro?`, ${data.bairro}`:""} — ${data.localidade||""}/${data.uf||""}`;}catch(err){if(status)status.textContent="Não foi possível consultar o CEP agora. Tente novamente.";}}
+function validateProfessionalFields(values){let ok=true;const required=["proName","proPhone","proEmail","proPass","proBirth","proCep","proCity","proState","proJob","proExperience","proDescription","proAddress","proNumber","proDistrict"];required.forEach(id=>{const el=document.getElementById(id);const valid=!!el&&String(el.value||"").trim()!=="";markField(id,valid);if(!valid)ok=false;});
+ if(!isValidBrazilPhone(values.phone)||looksLikeFakeNumber(values.phone)){markField("proPhone",false);ok=false;}else markField("proPhone",true);
+ if(!isValidCep(values.cep)){markField("proCep",false);ok=false;}else markField("proCep",true);
+ if(!/^[A-Za-zÀ-ÿ]{2}$/.test(values.state)){markField("proState",false);ok=false;}else markField("proState",true);
+ ["proName","proCity","proJob"].forEach(id=>{const el=document.getElementById(id);if(el&&!onlyLettersValue(el.value)){markField(id,false);ok=false;}});
+ const email=document.getElementById("proEmail");if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())){markField("proEmail",false);ok=false;}else if(email)markField("proEmail",true);const pass=document.getElementById("proPass");if(pass&&pass.value.length<6){markField("proPass",false);ok=false;}else if(pass)markField("proPass",true);const birth=document.getElementById("proBirth");if(birth&&!birth.value){markField("proBirth",false);ok=false;}else if(birth)markField("proBirth",true);const n=document.getElementById("proNumber");if(n&&!/^\d+$/.test(n.value.trim())){markField("proNumber",false);ok=false;}else if(n)markField("proNumber",true);const exp=document.getElementById("proExperience");if(exp&&!/^\d+$/.test(exp.value.trim())){markField("proExperience",false);ok=false;}else if(exp)markField("proExperience",true);
+ [1,2,3,4,5].forEach(i=>{const n=document.getElementById(`ref${i}Name`),ph=document.getElementById(`ref${i}Phone`);if(!n||!onlyLettersValue(n.value)||!n.value.trim()){markField(`ref${i}Name`,false);ok=false;}else markField(`ref${i}Name`,true);if(!ph||!isValidBrazilPhone(ph.value)||looksLikeFakeNumber(ph.value)){markField(`ref${i}Phone`,false);ok=false;}else markField(`ref${i}Phone`,true);});
+ return ok;}
+
 function openRegister(){openModal(`<h2>Crie sua conta</h2><p>Tenha acesso à busca de profissionais, solicitações e avaliações.</p><div class="form-group"><label>Nome completo</label><input id="clientName" placeholder="Seu nome completo"></div><div class="form-group"><label>E-mail</label><input id="clientEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="clientPass" type="password" autocomplete="new-password" placeholder="Crie uma senha"></div><div id="registerError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="createClientAccount()">Criar minha conta</button><div class="modal-divider">ou</div><button class="btn btn-outline" style="width:100%" onclick="openProfessionalRegister()">Crie uma conta profissional</button>`) }
 
 function openOtpVerification(email,kind){
@@ -130,18 +155,14 @@ async function createClientAccount(){
     openOtpVerification(email,"client");
 }
 
-function openProfessionalRegister(){openModal(`<h2>Crie uma conta profissional</h2><p>O cadastro passa por análise antes de aparecer para os clientes.</p><div class="form-group"><label>Nome completo</label><input id="proName" placeholder="Seu nome completo"></div><div class="form-group"><label>Telefone</label><input id="proPhone" placeholder="Seu telefone"></div><div class="form-group"><label>E-mail</label><input id="proEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="proPass" type="password" autocomplete="new-password" placeholder="Crie uma senha"></div><div class="form-group"><label>Data de nascimento</label><input id="proBirth" type="date"></div><div class="form-group"><label>Cidade</label><input id="proCity" placeholder="Ex.: Recife"></div><div class="form-group"><label>Estado</label><input id="proState" maxlength="2" placeholder="Ex.: PE"></div><div class="form-group"><label>Profissão</label><input id="proJob" placeholder="Ex.: Eletricista"></div><div class="form-group"><label>Tempo de experiência</label><input id="proExperience" placeholder="Ex.: 5 anos"></div><div class="form-group"><label>Descrição do serviço</label><textarea id="proDescription" rows="3" placeholder="Conte sobre seu trabalho e experiência"></textarea></div>${[1,2,3,4,5].map(i=>`<div class="reference-card"><b>Cliente anterior ${i}</b><div class="form-group"><label>Nome</label><input id="ref${i}Name" placeholder="Nome do cliente"></div><div class="form-group"><label>Telefone</label><input id="ref${i}Phone" inputmode="tel" placeholder="Telefone do cliente"></div></div>`).join("")}<div class="notice">A ResolveJá entrará em contato com as 5 referências. O cadastro só será aprovado após análise da equipe.</div><div id="proRegisterError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="submitProfessionalApplication()">Enviar para análise</button>`) }
+function openProfessionalRegister(){openModal(`<h2>Crie uma conta profissional</h2><p>O cadastro passa por análise antes de aparecer para os clientes.</p><div class="form-group"><label>Nome completo</label><input id="proName" placeholder="Seu nome completo" autocomplete="name"><small class="field-help">Somente letras e espaços.</small></div><div class="form-group"><label>Telefone</label><input id="proPhone" inputmode="tel" maxlength="18" placeholder="+55 00 0 0000-0000"><small class="field-help">Formato obrigatório: +55 00 0 0000-0000</small></div><div class="form-group"><label>E-mail</label><input id="proEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="proPass" type="password" autocomplete="new-password" placeholder="Crie uma senha"></div><div class="form-group"><label>Data de nascimento</label><input id="proBirth" type="date"></div><div class="form-group"><label>CEP</label><input id="proCep" inputmode="numeric" maxlength="9" placeholder="00000-000"><small id="cepStatus" class="field-help">Digite o CEP para preencher o endereço automaticamente.</small></div><div class="form-group"><label>Endereço</label><input id="proAddress" readonly placeholder="Preenchido automaticamente pelo CEP"></div><div class="form-group"><label>Número</label><input id="proNumber" inputmode="numeric" maxlength="6" placeholder="Ex.: 120"><small class="field-help">Somente números.</small></div><div class="form-group"><label>Bairro</label><input id="proDistrict" readonly placeholder="Preenchido automaticamente pelo CEP"></div><div class="form-group"><label>Cidade</label><input id="proCity" readonly placeholder="Preenchida automaticamente pelo CEP"></div><div class="form-group"><label>Estado</label><input id="proState" maxlength="2" readonly placeholder="UF"></div><div class="form-group"><label>Profissão</label><input id="proJob" placeholder="Ex.: Eletricista"><small class="field-help">Somente letras e espaços.</small></div><div class="form-group"><label>Tempo de experiência (anos)</label><input id="proExperience" type="number" inputmode="numeric" min="0" max="80" step="1" placeholder="Ex.: 5"><small class="field-help">Somente números.</small></div><div class="form-group"><label>Descrição do serviço</label><textarea id="proDescription" rows="3" placeholder="Conte sobre seu trabalho e experiência"></textarea></div>${[1,2,3,4,5].map(i=>`<div class="reference-card"><b>Cliente anterior ${i}</b><div class="form-group"><label>Nome</label><input id="ref${i}Name" placeholder="Nome do cliente"></div><div class="form-group"><label>Telefone</label><input id="ref${i}Phone" inputmode="tel" maxlength="18" placeholder="+55 00 0 0000-0000"><small class="field-help">Formato obrigatório: +55 00 0 0000-0000</small></div></div>`).join("")}<div class="notice">A ResolveJá entrará em contato com as 5 referências. O cadastro só será aprovado após análise da equipe.</div><div id="proRegisterError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="submitProfessionalApplication()">Enviar para análise</button>`);wireProfessionalFieldRules();}
 
 async function submitProfessionalApplication(){
     if(!requireBackend())return;
     const get=id=>document.getElementById(id)?.value.trim()||"";
-    const values={name:get("proName"),phone:get("proPhone"),email:get("proEmail"),pass:document.getElementById("proPass")?.value||"",birth:get("proBirth"),city:get("proCity"),state:get("proState").toUpperCase(),cep:get("proCep"),job:get("proJob"),experience:get("proExperience"),description:get("proDescription")};
+    const values={name:get("proName"),phone:get("proPhone"),email:get("proEmail"),pass:document.getElementById("proPass")?.value||"",birth:get("proBirth"),cep:get("proCep"),address:get("proAddress"),number:get("proNumber"),district:get("proDistrict"),city:get("proCity"),state:get("proState").toUpperCase(),job:get("proJob"),experience:get("proExperience")+" anos",description:get("proDescription")};
     const e=document.getElementById("proRegisterError");
-    const missing=Object.entries(values).some(([k,v])=>k!=="pass"&&!v)||values.pass.length<6;
-    if(missing){e.textContent="Preencha todos os campos e use uma senha com pelo menos 6 caracteres.";e.classList.remove("hidden");return;}
-    if(!isValidBrazilPhone(values.phone)||looksLikeFakeNumber(values.phone)){e.textContent="Informe um telefone brasileiro válido. Números fictícios ou repetidos não são aceitos.";e.classList.remove("hidden");return;}
-    if(!isValidCep(values.cep)){e.textContent="Informe um CEP válido de 8 dígitos. CEPs fictícios, como 55555555, não são aceitos.";e.classList.remove("hidden");return;}
-    if(!/[A-Za-zÀ-ÿ]/.test(values.city)||/^[0-9\s-]+$/.test(values.city)){e.textContent="Informe uma cidade válida, usando o nome da cidade.";e.classList.remove("hidden");return;}
+    if(!validateProfessionalFields(values)||values.pass.length<6){e.textContent="Corrija os campos destacados em vermelho. O telefone deve seguir +55 00 0 0000-0000 e os campos de texto não aceitam números.";e.classList.remove("hidden");return;}
     const refs=[];for(let i=1;i<=5;i++){const name=get(`ref${i}Name`),phone=get(`ref${i}Phone`);if(!name||!phone){e.textContent=`Preencha o nome e telefone da referência ${i}.`;e.classList.remove("hidden");return;}refs.push({nome:name,telefone:phone,ordem:i,contato_verificado:false});}
     pendingProfessionalSignup={values,refs};
     const {data,error}=await sb.auth.signUp({email:values.email,password:values.pass,options:{data:{nome:values.name,tipo:"profissional"}}});
@@ -176,7 +197,7 @@ async function finishProfessionalSignup(user){
     const v=pending.values;
     const profile=await ensureUserProfile(user,v.name,"profissional",v.phone,v.city,v.state);
     if(profile.error){const e=document.getElementById("otpError")||document.getElementById("proRegisterError");e.textContent=profile.error.message;e.classList.remove("hidden");return;}
-    const {data:pro,error:proError}=await sb.from("profissionais").insert({usuario_id:user.id,nome:v.name,telefone:v.phone,email:v.email,data_nascimento:v.birth,cidade:v.city,estado:v.state,cep:v.cep,profissao:v.job,experiencia:v.experience,descricao:v.description,status:"pendente",verificado:false}).select().single();
+    const {data:pro,error:proError}=await sb.from("profissionais").insert({usuario_id:user.id,nome:v.name,telefone:v.phone,email:v.email,data_nascimento:v.birth,cidade:v.city,estado:v.state,cep:v.cep,profissao:v.job,experiencia:v.experience,descricao:v.description,endereco:v.address,numero:v.number,bairro:v.district,status:"pendente",verificado:false}).select().single();
     if(proError){const e=document.getElementById("otpError")||document.getElementById("proRegisterError");e.textContent=proError.message;e.classList.remove("hidden");return;}
     const refs=pending.refs.map(r=>({...r,profissional_id:pro.id}));
     const {error:refError}=await sb.from("referencias").insert(refs);
@@ -495,7 +516,7 @@ async function adminPage(page,el){
         box.innerHTML=(data||[]).map(p=>`<div class="admin-application"><div><b>${escapeHtml(p.nome)}</b><span>${escapeHtml(p.profissao||"")} • ${escapeHtml(p.cidade||"")}${p.estado?", "+escapeHtml(p.estado):""}</span></div><span class="status">${escapeHtml(p.status||"")}</span></div>`).join("")||"<p>Nenhum profissional cadastrado.</p>";
     }
     else if(page==="users"){
-        c.innerHTML=`<h2>Usuários</h2><p style="color:#718078">Pesquise usuários, veja o estado da conta e aplique punições.</p><div class="panel"><div class="admin-search-row"><input id="adminUserSearch" placeholder="Pesquisar por nome ou e-mail"><button class="btn btn-primary" onclick="searchAdminUsers()">Pesquisar</button></div><div id="adminUserResults"><p>Digite uma busca para pesquisar.</p></div></div>`;
+        c.innerHTML=`<h2>Usuários</h2><p style="color:#718078">Todos os usuários cadastrados aparecem aqui. Você pode ver o estado da conta e aplicar punições.</p><div id="adminUserResults" class="panel"><p>Carregando usuários...</p></div>`;searchAdminUsers();
     }
     else if(page==="reports"){
         c.innerHTML=`<h2>Denúncias</h2><p style="color:#718078">Tentativas de compartilhamento de contatos e outras ocorrências.</p><div id="reportsList" class="panel"><p>Carregando...</p></div>`;
@@ -509,12 +530,10 @@ async function adminPage(page,el){
 }
 async function searchAdminUsers(){
     if(!window.resolveJaIsAdmin)return;
-    const q=(document.getElementById("adminUserSearch")?.value||"").trim();const box=document.getElementById("adminUserResults");if(!box)return;
-    let query=sb.from("usuarios").select("id,nome,email,telefone,cidade,estado,tipo,status,punicao_expira_em,motivo_punicao,criado_em").order("criado_em",{ascending:false}).limit(50);
-    if(q)query=query.or(`nome.ilike.%${q}%,email.ilike.%${q}%`);
-    const {data,error}=await query;
-    if(error){box.innerHTML=`<div class="notice">Não foi possível pesquisar usuários. ${escapeHtml(error.message)}</div>`;return;}
-    if(!data?.length){box.innerHTML=`<p>Nenhum usuário encontrado.</p>`;return;}
+    const box=document.getElementById("adminUserResults");if(!box)return;
+    const {data,error}=await sb.from("usuarios").select("id,nome,email,telefone,cidade,estado,tipo,status,punicao_expira_em,motivo_punicao,criado_em").order("criado_em",{ascending:false});
+    if(error){box.innerHTML=`<div class="notice">Não foi possível carregar os usuários. ${escapeHtml(error.message)}</div>`;return;}
+    if(!data?.length){box.innerHTML=`<p>Nenhum usuário cadastrado.</p>`;return;}
     box.innerHTML=data.map(u=>{const blocked=u.status&&u.status!=="ativo";return `<div class="admin-user-row"><div><b>${escapeHtml(u.nome||"Sem nome")}</b><span>${escapeHtml(u.tipo||"cliente")} • ${escapeHtml(u.cidade||"")}${u.estado?", "+escapeHtml(u.estado):""}</span><small>${escapeHtml(u.email||"")} • ${blocked?"⛔ "+escapeHtml(u.motivo_punicao||"Conta punida"):"✅ Conta ativa"}</small></div><div class="admin-user-actions"><button class="btn btn-danger" onclick="punishUser('${u.id}')">Punir</button><button class="btn btn-outline" onclick="clearUserPunishment('${u.id}')">Liberar</button></div></div>`;}).join("");
 }
 async function punishUser(userId){
