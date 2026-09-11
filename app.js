@@ -209,10 +209,15 @@ function openOtpVerification(email,kind){
         <h2>${title}</h2>
 
         <p>
-            Enviamos um <b>código de 6 dígitos</b> para
+            Enviamos um <b>código de 8 dígitos</b> para
             <b>${escapeHtml(email)}</b>.
             Digite o código recebido no Gmail.
         </p>
+
+        <div class="notice" style="margin-top:15px;">
+            📩 <b>Não encontrou o e-mail?</b><br>
+            Verifique também a pasta <b>Spam</b> ou <b>Lixo eletrônico</b>.
+        </div>
 
         <div class="form-group">
             <label>Código de confirmação</label>
@@ -220,8 +225,8 @@ function openOtpVerification(email,kind){
                 id="otpCode"
                 inputmode="numeric"
                 autocomplete="one-time-code"
-                maxlength="6"
-                placeholder="000000"
+                maxlength="8"
+                placeholder="00000000"
             >
         </div>
 
@@ -463,8 +468,8 @@ async function verifySignupOtp(kind){
             ?pending.values.email
             :pending.email;
 
-    if(!/^\d{6}$/.test(code)){
-        e.textContent="Digite o código de 6 dígitos recebido no Gmail.";
+    if(!/^\d{8}$/.test(code)){
+        e.textContent="Digite o código de 8 dígitos recebido no Gmail.";
         e.classList.remove("hidden");
         return;
     }
@@ -510,7 +515,7 @@ async function resendSignupOtp(email){
         return;
     }
 
-    e.textContent="Novo código enviado. Verifique o Gmail.";
+    e.textContent="Novo código enviado. Verifique o Gmail, inclusive a pasta Spam ou Lixo eletrônico.";
     e.classList.remove("hidden");
 }
 
@@ -640,7 +645,7 @@ function login(){
 
         <p>
             Digite seu e-mail e enviaremos um
-            <b>código de 6 dígitos</b>.
+            <b>código de 8 dígitos</b>.
         </p>
 
         <div class="form-group">
@@ -704,9 +709,14 @@ function openLoginOtp(email){
         <h2>Digite o código</h2>
 
         <p>
-            Enviamos um <b>código de 6 dígitos</b> para
+            Enviamos um <b>código de 8 dígitos</b> para
             <b>${escapeHtml(email)}</b>.
         </p>
+
+        <div class="notice" style="margin-top:15px;">
+            📩 <b>Não encontrou o e-mail?</b><br>
+            Verifique também a pasta <b>Spam</b> ou <b>Lixo eletrônico</b>.
+        </div>
 
         <div class="form-group">
             <label>Código de acesso</label>
@@ -715,8 +725,8 @@ function openLoginOtp(email){
                 id="loginOtpCode"
                 inputmode="numeric"
                 autocomplete="one-time-code"
-                maxlength="6"
-                placeholder="000000"
+                maxlength="8"
+                placeholder="00000000"
             >
         </div>
 
@@ -736,8 +746,8 @@ async function verifyLoginOtp(email){
     const code=document.getElementById("loginOtpCode")?.value.trim();
     const e=document.getElementById("loginOtpError");
 
-    if(!/^\d{6}$/.test(code)){
-        e.textContent="Digite o código de 6 dígitos recebido no seu e-mail.";
+    if(!/^\d{8}$/.test(code)){
+        e.textContent="Digite o código de 8 dígitos recebido no seu e-mail.";
         e.classList.remove("hidden");
         return;
     }
@@ -773,7 +783,7 @@ async function resendLoginOtp(email){
         return;
     }
 
-    e.textContent="Novo código enviado. Verifique seu e-mail.";
+    e.textContent="Novo código enviado. Verifique seu e-mail, inclusive a pasta Spam ou Lixo eletrônico.";
     e.classList.remove("hidden");
 }
 
