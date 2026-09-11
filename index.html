@@ -12,8 +12,8 @@
     <div class="brand"><span class="brand-mark">✓</span><span>Resolve<span>Já</span></span></div>
     <nav id="publicNav">
       <button class="nav-link active" data-page="home">Início</button>
-      <button class="nav-link auth-only" data-page="services">Serviços</button>
       <button class="nav-link" data-page="about">Como funciona</button>
+      <button class="btn btn-outline" id="registerBtn">Criar conta</button>
       <button class="btn btn-primary" id="loginBtn">Entrar</button>
     </nav>
     <div id="userNav" class="hidden">
@@ -31,7 +31,7 @@
           <p>Encontre profissionais verificados, confiáveis e especializados para os problemas do seu dia a dia.</p>
           <div class="hero-actions">
             <button class="btn btn-primary btn-large auth-only" onclick="showPage('services')">Encontrar profissional</button>
-            <button class="btn btn-outline btn-large" onclick="openRegister()">Quero ser profissional</button>
+            <button class="btn btn-outline btn-large" onclick="openProfessionalRegister()">Quero ser profissional</button>
           </div>
           <div class="trust-row">
             <span>✓ Profissionais verificados</span>
@@ -56,6 +56,57 @@
         <div><strong>1–10</strong><span>notas nas avaliações</span></div>
         <div><strong>5</strong><span>clientes usados na verificação</span></div>
         <div><strong>24/7</strong><span>acesso à plataforma</span></div>
+      </div>
+    </section>
+
+    <section id="clientHome" class="page">
+      <div class="client-layout">
+        <aside class="client-side">
+          <div class="client-side-title">ResolveJá</div>
+          <button class="client-side-btn active" onclick="showPage('clientHome');loadClientHome();">⌂ Início</button>
+          <button class="client-side-btn" onclick="showPage('services')">⌕ Encontrar profissional</button>
+          <button class="client-side-btn" onclick="showPage('professionals');renderPros()">✓ Profissionais</button>
+          <button class="client-side-btn" onclick="openClientSettings()">⚙ Configurações</button>
+        </aside>
+        <div class="client-content">
+          <div class="client-welcome">
+            <div>
+              <div class="eyebrow">Área do cliente</div>
+              <h2 id="clientWelcome">Olá 👋</h2>
+              <p>Encontre alguém confiável para resolver o que você precisa.</p>
+            </div>
+            <button class="btn btn-primary" onclick="showPage('services')">Encontrar profissional</button>
+          </div>
+          <div class="client-grid">
+            <div class="client-main-card">
+              <h3>Encontre por categoria</h3>
+              <p>Escolha uma categoria e veja profissionais aprovados e verificados pela ResolveJá.</p>
+              <div id="clientCategoryGrid" class="mini-category-grid"></div>
+            </div>
+            <div class="client-profile-card">
+              <div class="client-card-label">Minha conta</div>
+              <div id="clientUserInfo" class="client-user-info"></div>
+              <button class="btn btn-outline" style="width:100%;margin-top:16px" onclick="openClientSettings()">Editar perfil</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="clientSettings" class="page">
+      <div class="section-head"><div><div class="eyebrow">Minha conta</div><h2>Configurações</h2></div><button class="btn btn-ghost" onclick="showPage('clientHome')">← Voltar</button></div>
+      <div class="settings-card">
+        <h3>Dados do perfil</h3>
+        <p>Atualize as informações que serão usadas na sua conta.</p>
+        <div class="settings-grid">
+          <div class="form-group"><label>Nome completo</label><input id="settingsName" placeholder="Seu nome"></div>
+          <div class="form-group"><label>E-mail</label><input id="settingsEmail" type="email" disabled></div>
+          <div class="form-group"><label>Telefone</label><input id="settingsPhone" inputmode="tel" placeholder="Seu telefone"></div>
+          <div class="form-group"><label>Cidade</label><input id="settingsCity" placeholder="Sua cidade"></div>
+          <div class="form-group"><label>Estado</label><input id="settingsState" maxlength="2" placeholder="UF"></div>
+        </div>
+        <div id="settingsNotice" class="notice hidden"></div>
+        <button class="btn btn-primary" onclick="saveClientSettings()">Salvar alterações</button>
       </div>
     </section>
 
