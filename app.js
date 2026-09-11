@@ -104,8 +104,8 @@ async function verifySignupOtp(kind){
     const pending=kind==="professional"?pendingProfessionalSignup:pendingClientSignup;
     if(!pending){e.textContent="Esta confirmação expirou. Recomece o cadastro.";e.classList.remove("hidden");return;}
     const email=kind==="professional"?pending.values.email:pending.email;
-    if(!/^\d{6}$/.test(code)){e.textContent="Digite o código de 8 dígitos recebido no Gmail.";e.classList.remove("hidden");return;}
-    const {data,error}=await sb.auth.verifyOtp({email,token:code,type:"email"});
+    if(!/^\d{8}$/.test(code)){e.textContent="Digite o código de 8 dígitos recebido no Gmail.";e.classList.remove("hidden");return;}
+    const {data,error}=await sb.auth.verifyOtp({email,token:code,type:kind==="professional"||kind==="client"?"signup":"email"});
     if(error){e.textContent="Código inválido ou expirado. Solicite outro código e tente novamente.";e.classList.remove("hidden");return;}
     if(kind==="professional") await finishProfessionalSignup(data.user);
     else {await ensureUserProfile(data.user,pending.name,"cliente");pendingClientSignup=null;closeModal();enterClient(pending.name);}
