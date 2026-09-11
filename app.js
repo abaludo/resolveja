@@ -2,14 +2,7 @@ const categories = [
 ["🔧","Mecânico","Mecânica automotiva"],["⚡","Eletricista","Instalações elétricas"],["🚿","Encanador","Água e hidráulica"],["🎨","Pintor","Pintura residencial"],["🧱","Pedreiro","Obras e reformas"],["🪚","Marceneiro","Móveis e madeira"],["❄️","Técnico de ar-condicionado","Climatização"],["🧹","Diarista","Limpeza residencial"],["🌳","Jardineiro","Jardinagem"],["💻","Técnico de informática","Computadores"],["📱","Técnico de celular","Celulares e tablets"],["🔑","Chaveiro","Chaves e fechaduras"],["🚗","Lavador automotivo","Estética automotiva"],["📦","Montador de móveis","Montagem"],["🧺","Lavanderia","Lavagem de roupas"],["🐕","Adestrador","Animais"],["🐈","Pet sitter","Cuidados com pets"],["📸","Fotógrafo","Fotografia"],["🎥","Videomaker","Vídeos"],["💇","Cabeleireiro","Beleza"],["💅","Manicure","Unhas"],["💄","Maquiador","Maquiagem"],["🧵","Costureiro","Costura e ajustes"],["👟","Sapateiro","Calçados"],["📚","Professor particular","Aulas"],["🗣️","Professor de idiomas","Idiomas"],["🎸","Professor de música","Música"],["🏋️","Personal trainer","Fitness"],["🧘","Instrutor de yoga","Bem-estar"],["📋","Contador","Contabilidade"],["⚖️","Advogado","Serviços jurídicos"],["🏠","Corretor de imóveis","Imóveis"],["📐","Arquiteto","Arquitetura"],["🧮","Engenheiro","Engenharia"],["🪟","Vidraceiro","Vidros"],["🏗️","Serralheiro","Metalurgia"],["🛋️","Tapeceiro","Estofados"],["🧼","Higienização de sofá","Limpeza especializada"],["🪳","Dedetizador","Controle de pragas"],["🚚","Frete e mudanças","Transporte"],["🛵","Entregador","Entregas"],["🖨️","Técnico de impressora","Impressoras"],["📡","Técnico de internet","Redes"],["📺","Técnico de TV","Eletrônicos"],["🔌","Instalador de tomadas","Elétrica"],["💡","Instalador de iluminação","Iluminação"],["🔨","Montador","Montagens gerais"],["🏊","Manutenção de piscina","Piscinas"],["🧯","Técnico de segurança","Segurança"],["🔋","Técnico de bateria","Baterias"],["🚲","Mecânico de bicicletas","Bicicletas"],["🏍️","Mecânico de motos","Motocicletas"],["🚘","Funileiro","Funilaria"],["🛞","Borracheiro","Pneus"],["🧑‍🍳","Cozinheiro","Culinária"],["🍰","Confeiteiro","Confeitaria"],["🍽️","Garçom para eventos","Eventos"],["🎉","Organizador de eventos","Eventos"],["💐","Florista","Flores"],["🪴","Paisagista","Paisagismo"],["🧽","Piscineiro","Manutenção"],["🧱","Azulejista","Revestimentos"],["🪜","Gesseiro","Gesso"],["🏠","Telhadista","Telhados"],["🚪","Instalador de portas","Portas"],["🪟","Instalador de janelas","Janelas"],["🧰","Montador industrial","Montagem industrial"],["⚙️","Torneiro mecânico","Usinagem"],["🔩","Soldador","Soldagem"],["🪑","Restaurador de móveis","Restauração"],["🧴","Impermeabilizador","Impermeabilização"],["🧯","Extintores","Manutenção"],["🔒","Instalador de câmeras","CFTV"],["🚨","Alarmes","Segurança eletrônica"],["📶","Instalador de antena","Antenas"],["🎮","Técnico de videogame","Consoles"],["🖥️","Técnico de notebook","Notebooks"],["⌨️","Montador de PC","Computadores"],["🌐","Desenvolvedor web","Sites"],["🎨","Designer gráfico","Design"],["✍️","Redator","Textos"],["📣","Social media","Redes sociais"],["📊","Analista de dados","Dados"],["📸","Editor de fotos","Edição"],["🎬","Editor de vídeo","Edição de vídeo"],["🎧","DJ","Eventos"],["🎤","Cantor","Música"],["🎹","Pianista","Música"],["🎻","Músico","Música"],["🎭","Ator","Arte"],["🖌️","Ilustrador","Arte"],["🧑‍🎨","Artista","Arte"],["🧠","Psicopedagogo","Educação"],["👶","Babá","Cuidados infantis"],["🧓","Cuidador de idosos","Cuidados"],["♿","Cuidador especializado","Acompanhamento"],["🐶","Passeador de cães","Pets"],["🐾","Banho e tosa","Pets"],["🌱","Cuidador de plantas","Plantas"],["🏡","Caseiro","Residências"],["🧹","Limpeza pós-obra","Limpeza"],["🪣","Lavador de caixa d'água","Higienização"],["🧴","Limpeza de piscina","Piscinas"],["🪑","Montagem de escritório","Móveis"],["📦","Empacotador","Mudanças"],["🚛","Transportador","Transporte"],["🚐","Motorista particular","Transporte"],["🚕","Motorista para eventos","Transporte"],["📑","Despachante","Documentação"],["📝","Digitador","Serviços digitais"],["🖥️","Assistência remota","Tecnologia"],["🔧","Manutenção geral","Manutenção"],["🏚️","Reforma residencial","Reformas"],["🏢","Manutenção predial","Predial"],["🏬","Manutenção comercial","Comercial"],["💧","Limpeza de caixa d'água","Higienização"],["🧹","Limpeza comercial","Limpeza"],["🪟","Limpeza de vidros","Limpeza"],["🧽","Limpeza de estofados","Limpeza"],["🚿","Desentupidor","Hidráulica"],["🔥","Técnico de gás","Gás"],["☀️","Instalador solar","Energia solar"],["🔋","Eletricista automotivo","Automotiva"],["🚘","Polimento automotivo","Automotiva"],["✨","Martelinho de ouro","Automotiva"],["🛠️","Guincho","Automotiva"],["🚙","Inspeção veicular","Automotiva"],["🏍️","Entregas de moto","Transporte"],["📦","Montador de estruturas","Montagem"],["🎪","Montador de eventos","Eventos"],["💡","Iluminador de eventos","Eventos"],["🌐","Instalador de rede","Tecnologia"],["🔐","Especialista em segurança digital","Tecnologia"],["🧾","Consultor financeiro","Finanças"],["💼","Consultor empresarial","Negócios"],["📢","Consultor de marketing","Marketing"],["🧑‍💻","Suporte técnico","Tecnologia"],["📖","Professor de reforço","Educação"],["🎓","Orientador acadêmico","Educação"],["🧒","Recreador infantil","Eventos"],["🎂","Decorador de festas","Eventos"],["💐","Decorador","Decoração"],["🏠","Designer de interiores","Interiores"],["🧱","Designer de móveis","Móveis"],["🌿","Podador de árvores","Jardinagem"],["🌾","Paisagista residencial","Jardinagem"],["🐝","Apicultor","Serviços rurais"],["🌾","Serviços rurais","Campo"],["🚜","Operador de máquinas","Máquinas"],["🔧","Manutenção de máquinas","Máquinas"],["🧰","Manutenção industrial","Industrial"],["⚙️","Mecânico industrial","Industrial"],["🧪","Técnico de laboratório","Laboratório"],["📡","Técnico em eletrônica","Eletrônica"],["🔬","Técnico especializado","Técnico"],["🩹","Enfermeiro particular","Cuidados"],["💆","Massoterapeuta","Bem-estar"],["💇","Barbeiro","Beleza"],["🧖","Esteticista","Estética"],["💍","Joalheiro","Joias"],["⌚","Relojoeiro","Relógios"],["🎹","Afinador de instrumentos","Música"],["📦","Personal organizer","Organização"],["🧺","Passadeira","Roupas"],["🧹","Auxiliar doméstico","Casa"],["🧑‍🌾","Hortelão","Jardinagem"],["🐴","Cuidador de cavalos","Animais"],["📷","Fotógrafo de eventos","Fotografia"],["💒","Fotógrafo de casamento","Fotografia"],["💻","Criador de sistemas","Tecnologia"],["🤖","Automação","Tecnologia"],["🖨️","Impressão 3D","Tecnologia"],["🎁","Personalização de presentes","Artesanato"],["🧶","Artesão","Artesanato"],["🕯️","Fabricante de velas","Artesanato"],["🪵","Entalhador","Artesanato"],["🧑‍🔧","Técnico geral","Manutenção"],["📋","Consultor","Consultoria"],["🔍","Perito","Análise"],["🗺️","Guia turístico","Turismo"],["✈️","Consultor de viagens","Turismo"],["🏕️","Organizador de acampamento","Turismo"],["🎯","Instrutor","Treinamento"],["🗣️","Palestrante","Eventos"],["🧑‍🏫","Instrutor profissional","Cursos"]
 ];
 
-const professionals = [
-{name:"Marcos Silva",role:"Eletricista",rating:"4,9",jobs:127,city:"Recife, PE",tags:["Instalação","Manutenção","Elétrica"],initials:"MS"},
-{name:"Ana Beatriz",role:"Diarista",rating:"4,8",jobs:94,city:"Jaboatão dos Guararapes, PE",tags:["Limpeza","Organização"],initials:"AB"},
-{name:"Carlos Henrique",role:"Mecânico",rating:"5,0",jobs:218,city:"Recife, PE",tags:["Carros","Diagnóstico","Motor"],initials:"CH"},
-{name:"Rafael Souza",role:"Técnico de informática",rating:"4,7",jobs:83,city:"Olinda, PE",tags:["PC","Notebook","Redes"],initials:"RS"},
-{name:"Juliana Lima",role:"Cabeleireira",rating:"4,9",jobs:156,city:"Recife, PE",tags:["Cabelo","Coloração"],initials:"JL"},
-{name:"Pedro Santos",role:"Encanador",rating:"4,8",jobs:111,city:"Paulista, PE",tags:["Hidráulica","Desentupimento"],initials:"PS"}
-];
+
 
 const SUPABASE_URL = window.RESOLVEJA_CONFIG?.SUPABASE_URL || "";
 const SUPABASE_KEY = window.RESOLVEJA_CONFIG?.SUPABASE_PUBLISHABLE_KEY || "";
@@ -44,7 +37,6 @@ async function renderPros(cat="Profissionais disponíveis"){
         const {data,error}=await sb.from("profissionais").select("id,nome,cidade,estado,profissao,experiencia,descricao,verificado,status").eq("status","aprovado").eq("verificado",true).order("criado_em",{ascending:false});
         if(!error)list=data||[];
     }
-    if(!list.length)list=professionals.map(p=>({id:null,nome:p.name,cidade:p.city,profissao:p.role,experiencia:"",descricao:"Profissional verificado pela ResolveJá.",verificado:true,status:"aprovado",rating:p.rating,jobs:p.jobs,tags:p.tags,initials:p.initials}));
     if(cat && cat!=="Profissionais disponíveis")list=list.filter(p=>String(p.profissao||"").toLowerCase().includes(cat.toLowerCase()));
     if(!list.length){grid.innerHTML=`<div class="panel"><h3>Nenhum profissional encontrado</h3><p>Não encontramos profissionais aprovados nessa categoria ainda.</p></div>`;return;}
     grid.innerHTML=list.map(p=>{
@@ -58,7 +50,7 @@ function escapeHtml(v){return String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;",
 function openProfessionals(cat){showPage("professionals");document.getElementById("proTitle").textContent=cat+" — profissionais";renderPros(cat);}
 async function contactPro(id,name){
     if(!sb||!id){
-        openModal(`<h2>${escapeHtml(name)}</h2><p>Este perfil é um exemplo enquanto o banco ainda não possui profissionais aprovados.</p><div class="notice">🛡️ A ResolveJá protege contra compartilhamento de contatos externos.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);return;
+        openModal(`<h2>${escapeHtml(name)}</h2><p>Este perfil não está disponível no banco de dados.</p><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Fechar</button>`);return;
     }
     const {data,error}=await sb.from("profissionais").select("id,nome,cidade,estado,profissao,experiencia,descricao,verificado,status").eq("id",id).single();
     if(error||!data){openModal(`<h2>Não foi possível abrir o perfil</h2><div class="notice">Tente novamente.</div>`);return;}
@@ -113,7 +105,7 @@ async function verifySignupOtp(kind){
     if(!pending){e.textContent="Esta confirmação expirou. Recomece o cadastro.";e.classList.remove("hidden");return;}
     const email=kind==="professional"?pending.values.email:pending.email;
     if(!/^\d{6}$/.test(code)){e.textContent="Digite o código de 8 dígitos recebido no Gmail.";e.classList.remove("hidden");return;}
-    const {data,error}=await sb.auth.verifyOtp({email,token:code,type:"signup"});
+    const {data,error}=await sb.auth.verifyOtp({email,token:code,type:"email"});
     if(error){e.textContent="Código inválido ou expirado. Solicite outro código e tente novamente.";e.classList.remove("hidden");return;}
     if(kind==="professional") await finishProfessionalSignup(data.user);
     else {await ensureUserProfile(data.user,pending.name,"cliente");pendingClientSignup=null;closeModal();enterClient(pending.name);}
@@ -144,18 +136,38 @@ async function ensureUserProfile(user,name,tipo,telefone="",cidade="",estado="")
     const {data,error}=await sb.from("usuarios").upsert({id:user.id,nome:name,telefone,cidade,estado,tipo},{onConflict:"id"}).select().single();
     return {data,error};
 }
-function login(){openModal(`<h2>Entrar</h2><p>Acesse sua conta de cliente ou administrador.</p><div class="form-group"><label>E-mail</label><input id="loginUser" type="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="loginPass" type="password" placeholder="Digite sua senha"></div><div id="loginError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="doLogin()">Entrar</button><div class="modal-divider">Ainda não tem conta?</div><button class="btn btn-outline" style="width:100%" onclick="openRegister()">Crie sua conta</button>`)}
-async function doLogin(){
+function login(){openModal(`<div class="login-modal-head"><div class="success-icon">✉</div><h2>Entrar na ResolveJá</h2><p>Digite seu Gmail e nós enviaremos um código de acesso.</p></div><div class="form-group"><label>E-mail</label><input id="loginUser" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></div><div id="loginError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="sendLoginCode()">Enviar código</button><div class="modal-divider">Ainda não tem conta?</div><button class="btn btn-outline" style="width:100%" onclick="openRegister()">Crie sua conta</button>`)}
+async function sendLoginCode(){
     if(!requireBackend())return;
-    const u=document.getElementById("loginUser").value.trim(),p=document.getElementById("loginPass").value,e=document.getElementById("loginError");
-    const {data,error}=await sb.auth.signInWithPassword({email:u,password:p});
-    if(error){e.textContent="E-mail ou senha inválidos.";e.classList.remove("hidden");return;}
+    const email=document.getElementById("loginUser")?.value.trim();
+    const e=document.getElementById("loginError");
+    if(!email){e.textContent="Digite seu e-mail.";e.classList.remove("hidden");return;}
+    const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false}});
+    if(error){e.textContent="Não foi possível enviar o código. Verifique se este e-mail já possui uma conta.";e.classList.remove("hidden");return;}
+    openLoginOtp(email);
+}
+function openLoginOtp(email){
+    openModal(`<div class="success-icon">✉</div><h2>Código enviado</h2><p>Enviamos um <b>código de 8 dígitos</b> para <b>${escapeHtml(email)}</b>. Verifique o Gmail.</p><div class="form-group"><label>Código</label><input id="loginOtpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="00000000"></div><div id="loginOtpError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="verifyLoginCode('${escapeHtml(email)}')">Entrar</button><button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="sendLoginCodeAgain('${escapeHtml(email)}')">Enviar outro código</button>`);
+}
+async function verifyLoginCode(email){
+    const code=document.getElementById("loginOtpCode")?.value.trim();
+    const e=document.getElementById("loginOtpError");
+    if(!/^\d{8}$/.test(code)){e.textContent="Digite os 8 dígitos do código.";e.classList.remove("hidden");return;}
+    const {data,error}=await sb.auth.verifyOtp({email,token:code,type:"email"});
+    if(error){e.textContent="Código inválido ou expirado.";e.classList.remove("hidden");return;}
     await routeAuthenticatedUser(data.user);
+}
+async function sendLoginCodeAgain(email){
+    const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false}});
+    const e=document.getElementById("loginOtpError");
+    if(error){e.textContent=error.message;e.classList.remove("hidden");return;}
+    e.textContent="Novo código enviado. Verifique o Gmail.";e.classList.remove("hidden");
 }
 async function routeAuthenticatedUser(user){
     const {data:admin}=await sb.from("administradores").select("cargo,ativo").eq("usuario_id",user.id).eq("ativo",true).maybeSingle();
     closeModal();
-    if(admin){enterAdmin(admin.cargo.toLowerCase()==="master");return;}
+    if(admin){const isMaster=String(admin.cargo||"").toLowerCase()==="master";window.resolveJaIsAdmin=true;enterAdmin(isMaster);return;}
+    window.resolveJaIsAdmin=false;
     const {data:profile}=await sb.from("usuarios").select("nome,tipo").eq("id",user.id).maybeSingle();
     enterClient(profile?.nome||user.user_metadata?.nome||user.email?.split("@")[0]||"Cliente");
 }
@@ -214,11 +226,10 @@ async function saveClientSettings(){
     const {data:{user}}=await sb.auth.getUser();
     if(!user)return;
     const name=document.getElementById("settingsName").value.trim();
-    const phone=document.getElementById("settingsPhone").value.trim();
     const city=document.getElementById("settingsCity").value.trim();
     const state=document.getElementById("settingsState").value.trim().toUpperCase();
     if(!name){showNotice("settingsNotice","Informe seu nome.");return;}
-    const {error}=await sb.from("usuarios").upsert({id:user.id,nome:name,telefone:phone,cidade:city,estado:state,tipo:"cliente"},{onConflict:"id"});
+    const {error}=await sb.from("usuarios").upsert({id:user.id,nome:name,cidade:city,estado:state,tipo:"cliente"},{onConflict:"id"});
     if(error){showNotice("settingsNotice",error.message);return;}
     showNotice("settingsNotice","Dados salvos com sucesso.",true);
     document.getElementById("welcome").textContent="Olá, "+name.split(" ")[0]+"!";
@@ -234,8 +245,27 @@ function showNotice(id,text,success=false){
     el.style.color=success?"#176b36":"";
 }
 
-function enterAdmin(master){document.getElementById("publicNav").classList.add("hidden");document.getElementById("userNav").classList.remove("hidden");document.getElementById("welcome").textContent=master?"👑 Conta Mestre":"🛡️ ADM";showPage("admin");document.querySelectorAll(".master-only").forEach(x=>x.style.display=master?"block":"none");adminPage("dashboard",document.querySelector(".side-btn"))}
-async function logout(){if(sb)await sb.auth.signOut();document.getElementById("userNav").classList.add("hidden");document.getElementById("publicNav").classList.remove("hidden");document.querySelectorAll(".auth-only").forEach(x=>x.style.display="none");showPage("home")}
+function enterAdmin(master){
+    document.getElementById("publicNav").classList.add("hidden");
+    document.getElementById("userNav").classList.add("hidden");
+    document.querySelectorAll(".client-only").forEach(x=>x.style.display="none");
+    document.querySelectorAll(".master-only").forEach(x=>x.style.display=master?"block":"none");
+    window.resolveJaIsMaster=master;
+    showPage("admin");
+    adminPage("dashboard",document.querySelector(".side-btn"));
+}
+function resetLoggedOut(){
+    document.getElementById("userNav")?.classList.add("hidden");
+    document.getElementById("publicNav")?.classList.remove("hidden");
+    document.querySelectorAll(".auth-only,.client-only").forEach(x=>x.style.display="none");
+    document.querySelectorAll(".master-only").forEach(x=>x.style.display="none");
+    window.resolveJaIsMaster=false;
+    showPage("home");
+}
+async function logout(){
+    if(sb){const {error}=await sb.auth.signOut(); if(error){console.error(error);}}
+    resetLoggedOut();
+}
 async function requestService(professionalId){
     if(!sb){requireBackend();return;}
     const {data:{user}}=await sb.auth.getUser();
@@ -246,30 +276,87 @@ async function requestService(professionalId){
     if(error){openModal(`<h2>Não foi possível solicitar</h2><div class="notice">${escapeHtml(error.message)}</div>`);return;}
     openModal(`<div class="success-icon">✓</div><h2>Solicitação enviada!</h2><p>O profissional recebeu sua solicitação.</p><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);
 }
-function analyzeApplication(id){openModal(`<h2>Análise do profissional</h2><p>As candidaturas reais ficam protegidas pelo RLS e serão carregadas do banco quando o módulo administrativo seguro estiver conectado.</p><div class="notice">A aprovação definitiva deve ocorrer no backend/Edge Function, nunca por localStorage.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`)}
+async function loadProfessionalApplication(id){
+    const {data:pro,error}=await sb.from("profissionais").select("id,nome,telefone,email,data_nascimento,cidade,estado,profissao,experiencia,descricao,status,verificado,criado_em").eq("id",id).single();
+    if(error||!pro)return null;
+    const {data:refs}=await sb.from("referencias").select("id,nome,telefone,ordem,contato_verificado,observacao").eq("profissional_id",id).order("ordem");
+    return {pro,refs:refs||[]};
+}
+async function analyzeApplication(id){
+    const item=await loadProfessionalApplication(id);
+    if(!item){openModal(`<h2>Não foi possível carregar</h2><div class="notice">Verifique as permissões do administrador no Supabase.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Fechar</button>`);return;}
+    const p=item.pro;
+    const options=categories.map(c=>`<option value="${escapeHtml(c[1])}" ${String(p.profissao||"")===c[1]?"selected":""}>${escapeHtml(c[1])}</option>`).join("");
+    const refs=item.refs.map(r=>`<div class="reference-admin"><b>${r.ordem}. ${escapeHtml(r.nome)}</b><span>${escapeHtml(r.telefone)}</span><span>${r.contato_verificado?"✓ Contato verificado":"○ Ainda não verificado"}</span>${r.observacao?`<small>${escapeHtml(r.observacao)}</small>`:""}</div>`).join("");
+    openModal(`<h2>Análise do profissional</h2><div class="analysis-grid"><div><b>Nome</b><span>${escapeHtml(p.nome)}</span></div><div><b>E-mail</b><span>${escapeHtml(p.email||"")}</span></div><div><b>Telefone</b><span>${escapeHtml(p.telefone||"")}</span></div><div><b>Cidade</b><span>${escapeHtml(p.cidade||"")}${p.estado?", "+escapeHtml(p.estado):""}</span></div><div><b>Nascimento</b><span>${escapeHtml(p.data_nascimento||"Não informado")}</span></div><div><b>Experiência</b><span>${escapeHtml(p.experiencia||"Não informado")}</span></div></div><div class="form-group"><label>Categoria do profissional</label><select id="analysisCategory">${options}</select></div><div class="form-group"><label>Descrição</label><textarea id="analysisDescription" rows="4">${escapeHtml(p.descricao||"")}</textarea></div><div class="panel" style="margin-top:10px"><h3>5 referências</h3>${refs||"<p>Nenhuma referência encontrada.</p>"}</div><div id="analysisError" class="notice hidden"></div><div class="analysis-actions"><button class="btn btn-danger" onclick="reviewProfessional('${id}','rejeitado')">Rejeitar</button><button class="btn btn-primary" onclick="reviewProfessional('${id}','aprovado')">Aprovar profissional</button></div>`);
+}
+async function reviewProfessional(id,status){
+    if(!window.resolveJaIsMaster && !window.resolveJaIsAdmin){openModal(`<h2>Acesso negado</h2><p>Você não tem permissão para analisar profissionais.</p>`);return;}
+    const category=document.getElementById("analysisCategory")?.value;
+    const description=document.getElementById("analysisDescription")?.value.trim();
+    const e=document.getElementById("analysisError");
+    if(!category){e.textContent="Escolha uma categoria.";e.classList.remove("hidden");return;}
+    const {error}=await sb.from("profissionais").update({profissao:category,descricao:description,status,verificado:status==="aprovado",analisado_em:new Date().toISOString()}).eq("id",id);
+    if(error){e.textContent="Não foi possível salvar a análise: "+error.message;e.classList.remove("hidden");return;}
+    closeModal();adminPage("analyses",document.querySelectorAll(".side-btn")[1]);
+}
 async function adminPage(page,el){
     document.querySelectorAll(".side-btn").forEach(x=>x.classList.remove("active"));if(el)el.classList.add("active");
     const c=document.getElementById("adminContent");
     if(page==="dashboard")c.innerHTML=`<h2>Visão geral</h2><p style="color:#718078">Painel administrativo da ResolveJá.</p><div class="cards"><div class="metric"><small>Banco</small><strong>Online</strong></div><div class="metric"><small>RLS</small><strong>Ativo</strong></div><div class="metric"><small>Verificação</small><strong>5 referências</strong></div><div class="metric"><small>Avaliações</small><strong>1–10</strong></div></div>`;
-    else if(page==="analyses")c.innerHTML=`<h2>Análises</h2><p style="color:#718078">As candidaturas reais serão exibidas aqui após a criação do módulo administrativo seguro.</p><div class="panel"><h3>Fila de verificação</h3><p>O ADM precisa validar as 5 referências antes de alterar o status para aprovado.</p></div>`;
-    else if(page==="professionals")c.innerHTML=`<h2>Profissionais</h2><div class="panel"><p>Profissionais aprovados e verificados.</p></div>`;
+    else if(page==="analyses"){
+        c.innerHTML=`<h2>Análises</h2><p style="color:#718078">Revise os cadastros enviados pelos profissionais.</p><div id="analysisList" class="panel"><p>Carregando...</p></div>`;
+        const box=document.getElementById("analysisList");
+        const {data,error}=await sb.from("profissionais").select("id,nome,email,telefone,cidade,estado,profissao,experiencia,status,verificado,criado_em").eq("status","pendente").order("criado_em",{ascending:false});
+        if(error){box.innerHTML=`<div class="notice">Não foi possível carregar a fila. Confira as políticas RLS para administradores.</div>`;return;}
+        if(!data?.length){box.innerHTML=`<h3>Nenhuma candidatura pendente</h3><p>Quando um profissional enviar o cadastro, ele aparecerá aqui.</p>`;return;}
+        box.innerHTML=data.map(p=>`<div class="admin-application"><div><b>${escapeHtml(p.nome)}</b><span>${escapeHtml(p.profissao||"Sem categoria")} • ${escapeHtml(p.cidade||"")}${p.estado?", "+escapeHtml(p.estado):""}</span><small>${escapeHtml(p.email||"")} • ${escapeHtml(p.telefone||"")}</small></div><button class="btn btn-primary" onclick="analyzeApplication('${p.id}')">Analisar</button></div>`).join("");
+    }
+    else if(page==="professionals"){
+        c.innerHTML=`<h2>Profissionais</h2><div id="adminPros" class="panel"><p>Carregando...</p></div>`;
+        const box=document.getElementById("adminPros");
+        const {data,error}=await sb.from("profissionais").select("nome,profissao,cidade,estado,status,verificado").order("criado_em",{ascending:false});
+        if(error){box.innerHTML=`<div class="notice">Não foi possível carregar profissionais.</div>`;return;}
+        box.innerHTML=(data||[]).map(p=>`<div class="admin-application"><div><b>${escapeHtml(p.nome)}</b><span>${escapeHtml(p.profissao||"")} • ${escapeHtml(p.cidade||"")}${p.estado?", "+escapeHtml(p.estado):""}</span></div><span class="status">${escapeHtml(p.status||"")}</span></div>`).join("")||"<p>Nenhum profissional cadastrado.</p>";
+    }
     else if(page==="users")c.innerHTML=`<h2>Usuários</h2><div class="panel"><p>Gerenciamento de contas de clientes.</p></div>`;
     else if(page==="reports")c.innerHTML=`<h2>Denúncias</h2><div class="panel"><p>Denúncias aguardando revisão.</p></div>`;
-    else if(page==="logs")c.innerHTML=`<h2>Registros</h2><div class="panel"><p>Auditoria administrativa protegida por RLS.</p></div>`;
-    else if(page==="admins")c.innerHTML=`<h2>Administradores</h2><div class="panel"><p>Somente a Conta Mestre deve criar administradores por operação administrativa segura.</p></div>`;
-    else c.innerHTML=`<h2>Configurações</h2><div class="panel"><p>Configurações da plataforma e da conta.</p></div>`;
+    else if(page==="logs")c.innerHTML=`<h2>Registros</h2><div class="panel"><p>Auditoria administrativa.</p></div>`;
+    else if(page==="admins"){
+        c.innerHTML=`<h2>Administradores</h2><p style="color:#718078">A Conta Mestre pode cadastrar novos administradores.</p><div class="panel"><div class="form-group"><label>Nome</label><input id="newAdminName" placeholder="Nome do administrador"></div><div class="form-group"><label>E-mail</label><input id="newAdminEmail" type="email" placeholder="admin@gmail.com"></div><div class="form-group"><label>Senha</label><input id="newAdminPass" type="password" placeholder="Senha do administrador"></div><div id="newAdminError" class="notice hidden"></div><button class="btn btn-primary" onclick="createAdminAccount()">Criar conta de ADM</button></div>`;
+    }
+    else c.innerHTML=`<h2>Configurações</h2><div class="panel"><p>Configurações da plataforma e da conta administrativa.</p></div>`;
+}
+async function createAdminAccount(){
+    if(!window.resolveJaIsMaster){return;}
+    const name=document.getElementById("newAdminName")?.value.trim();
+    const email=document.getElementById("newAdminEmail")?.value.trim();
+    const pass=document.getElementById("newAdminPass")?.value||"";
+    const e=document.getElementById("newAdminError");
+    if(!name||!email||pass.length<6){e.textContent="Preencha nome, e-mail e uma senha de pelo menos 6 caracteres.";e.classList.remove("hidden");return;}
+    const {data,error}=await sb.auth.signUp({email,password:pass,options:{data:{nome,tipo:"admin"}}});
+    if(error){e.textContent=error.message;e.classList.remove("hidden");return;}
+    if(!data.user){e.textContent="Não foi possível criar o usuário.";e.classList.remove("hidden");return;}
+    if(data.session){
+        await sb.auth.signOut();
+        resetLoggedOut();
+        openModal(`<h2>Administrador criado</h2><p>O usuário <b>${escapeHtml(email)}</b> foi criado no Auth, mas o Supabase entrou automaticamente nessa nova conta.</p><div class="notice">Para finalizar a criação do ADM com segurança, deixe a confirmação de e-mail ativada. Depois confirme o e-mail e peça para a Conta Mestre concluir o vínculo do ADM.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal();login()">Voltar ao login</button>`);
+        return;
+    }
+    const {error:adminError}=await sb.from("administradores").insert({usuario_id:data.user.id,cargo:"admin",ativo:true});
+    if(adminError){e.textContent="Conta criada no Auth, mas não foi possível registrar o ADM. Verifique as políticas RLS.";e.classList.remove("hidden");return;}
+    document.getElementById("adminContent").innerHTML=`<div class="panel"><div class="success-icon">✓</div><h3>Administrador criado</h3><p>${escapeHtml(email)} agora está cadastrado como ADM. Ele receberá o código de confirmação no Gmail se a confirmação de e-mail estiver ativa.</p></div>`;
 }
 async function boot(){
     renderServices();
     await renderPros();
-    document.querySelectorAll(".auth-only").forEach(x=>x.style.display="none");
+    document.querySelectorAll(".auth-only,.client-only,.master-only").forEach(x=>x.style.display="none");
     if(!sb)return;
     const {data:{session}}=await sb.auth.getSession();
     if(session?.user)await routeAuthenticatedUser(session.user);
-    sb.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT")logout();});
+    sb.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT")resetLoggedOut();});
 }
 document.getElementById("loginBtn").onclick=login;
 document.getElementById("registerBtn").onclick=openRegister;
-document.getElementById("logoutBtn").onclick=logout;
 document.querySelectorAll(".nav-link").forEach(b=>b.onclick=()=>{if(b.classList.contains("auth-only")&&!sb)return;showPage(b.dataset.page)});
 boot();
