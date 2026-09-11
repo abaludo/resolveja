@@ -90,6 +90,24 @@
       </div>
     </section>
 
+    <section id="professionalHome" class="page">
+      <div id="professionalOnly" class="professional-layout">
+        <aside class="client-side professional-side">
+          <div class="client-side-title">ResolveJá</div>
+          <div class="professional-label">Área do profissional</div>
+          <button class="client-side-btn active" onclick="showPage('professionalHome');loadProfessionalServices()">💬 Serviços</button>
+          <button class="client-side-btn client-logout-btn" onclick="logout()">↪ Sair da conta</button>
+        </aside>
+        <div class="client-content">
+          <div class="client-welcome">
+            <div><div class="eyebrow">Área do profissional</div><h2 id="professionalWelcome">Olá 👋</h2><p>Gerencie os contatos e conversas com seus clientes.</p></div>
+          </div>
+          <div class="professional-section-head"><div><h3>Serviços</h3><p>Os clientes que entrarem em contato com você aparecerão aqui.</p></div><button class="btn btn-outline" onclick="loadProfessionalServices()">↻ Atualizar</button></div>
+          <div id="professionalServiceList" class="professional-chat-list"></div>
+        </div>
+      </div>
+    </section>
+
     <section id="clientSettings" class="page">
       <div class="section-head"><div><div class="eyebrow">Minha conta</div><h2>Configurações</h2></div><button class="btn btn-ghost" onclick="showPage('clientHome')">← Voltar</button></div>
       <div class="settings-card">
