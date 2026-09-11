@@ -56,6 +56,55 @@ async function contactPro(id,name){
     if(error||!data){openModal(`<h2>Não foi possível abrir o perfil</h2><div class="notice">Tente novamente.</div>`);return;}
     openModal(`<h2>${escapeHtml(data.nome)}</h2><p><b>${escapeHtml(data.profissao)}</b> • ${escapeHtml(data.cidade||"")}${data.estado?" - "+escapeHtml(data.estado):""}</p><p>${escapeHtml(data.descricao||"Sem descrição.")}</p><p><b>Experiência:</b> ${escapeHtml(data.experiencia||"Não informado")}</p><div class="notice">🛡️ Para sua segurança, telefone, WhatsApp, @usuários e contatos externos não podem ser compartilhados pelo chat.</div><button class="btn btn-primary" style="width:100%" onclick="requestService('${data.id}')">Solicitar serviço</button><button class="btn btn-outline" style="width:100%;margin-top:8px" onclick="openChat('${data.id}','${String(data.nome||"").replace(/'/g,"\'")}')">Enviar mensagem</button>`);
 }
+
+function normalizeDigits(v){return String(v||"").replace(/\D/g,"");}
+function looksLikeFakeNumber(v){
+    const d=normalizeDigits(v);
+    if(!d)return false;
+    if(/^([0-9])\1+$/.test(d))return true;
+    if(d.length>=6 && /^(0123456789|1234567890|9876543210)$/.test(d))return true;
+    if(d.length>=6 && (d.length===6||d.length===7||d.length===8||d.length===9||d.length===10||d.length===11) && /^0+$/.test(d))return true;
+    return false;
+}
+function isValidBrazilPhone(v){
+    const d=normalizeDigits(v);
+    return d.length===10||d.length===11;
+}
+function isValidCep(v){
+    const d=normalizeDigits(v);
+    return d.length===8&&!looksLikeFakeNumber(d);
+}
+function hasContactAttempt(text){
+    const raw=String(text||"").toLowerCase();
+    const compact=raw.replace(/[^a-z0-9]/g,"");
+    const digits=raw.replace(/\D/g,"");
+    const spacedDigits=raw.replace(/[^0-9]/g,"");
+    const contactWords=/\b(whatsapp|whats|zap|wpp|wa\.me|telegram|insta|instagram|facebook|tiktok)\b/i.test(raw);
+    const handle=/@[a-z0-9_.-]{3,}/i.test(raw);
+    const phonePattern=/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?9?\s*\d{4}\s*[-. ]?\s*\d{4}/.test(raw);
+    const longDigits=digits.length>=6;
+    const repeated=spacedDigits.length>=6 && /^(\d)\1{5,}$/.test(spacedDigits);
+    const separatedDigits=(raw.match(/\d/g)||[]).length>=6 && /(?:\d\s*){6,}/.test(raw);
+    const writtenNumbers=/(cinco|seis|sete|oito|nove|zero|um|dois|tr[eê]s|quatro)(?:\s+(?:cinco|seis|sete|oito|nove|zero|um|dois|tr[eê]s|quatro)){5,}/i.test(raw);
+    return contactWords||handle||phonePattern||longDigits||repeated||separatedDigits||writtenNumbers;
+}
+async function reportContactAttempt(text,conversationId=null){
+    if(!sb)return;
+    const {data:{user}}=await sb.auth.getUser();
+    if(!user)return;
+    await sb.rpc("registrar_tentativa_contato_resolveja",{p_conversa_id:conversationId,p_conteudo:String(text).slice(0,1000)});
+}
+async function sendSecureMessage(conversationId,text){
+    const clean=String(text||"").trim();
+    if(!clean)return {error:{message:"Digite uma mensagem."},blocked:false};
+    if(hasContactAttempt(clean)){
+        await reportContactAttempt(clean,conversationId);
+        return {blocked:true,error:{message:"Mensagem bloqueada. A tentativa de compartilhar telefone, WhatsApp, usuário ou outro contato externo foi registrada para análise da equipe."}};
+    }
+    const {data,error}=await sb.from("mensagens").insert({conversa_id:conversationId,remetente_id:(await sb.auth.getUser()).data.user.id,conteudo:clean});
+    return {data,error,blocked:false};
+}
+
 function openModal(content){document.getElementById("modalContent").innerHTML=content;document.getElementById("modal").classList.remove("hidden")}
 function closeModal(){document.getElementById("modal").classList.add("hidden")}
 function requireBackend(){if(!supabaseReady){openModal(`<h2>Conecte o Supabase</h2><p>Abra <b>config.js</b> e coloque a URL e a chave publishable do seu projeto Supabase.</p><div class="notice">Nunca coloque a chave service_role no site.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);return false}return true}
@@ -86,10 +135,13 @@ function openProfessionalRegister(){openModal(`<h2>Crie uma conta profissional</
 async function submitProfessionalApplication(){
     if(!requireBackend())return;
     const get=id=>document.getElementById(id)?.value.trim()||"";
-    const values={name:get("proName"),phone:get("proPhone"),email:get("proEmail"),pass:document.getElementById("proPass")?.value||"",birth:get("proBirth"),city:get("proCity"),state:get("proState").toUpperCase(),job:get("proJob"),experience:get("proExperience"),description:get("proDescription")};
+    const values={name:get("proName"),phone:get("proPhone"),email:get("proEmail"),pass:document.getElementById("proPass")?.value||"",birth:get("proBirth"),city:get("proCity"),state:get("proState").toUpperCase(),cep:get("proCep"),job:get("proJob"),experience:get("proExperience"),description:get("proDescription")};
     const e=document.getElementById("proRegisterError");
     const missing=Object.entries(values).some(([k,v])=>k!=="pass"&&!v)||values.pass.length<6;
     if(missing){e.textContent="Preencha todos os campos e use uma senha com pelo menos 6 caracteres.";e.classList.remove("hidden");return;}
+    if(!isValidBrazilPhone(values.phone)||looksLikeFakeNumber(values.phone)){e.textContent="Informe um telefone brasileiro válido. Números fictícios ou repetidos não são aceitos.";e.classList.remove("hidden");return;}
+    if(!isValidCep(values.cep)){e.textContent="Informe um CEP válido de 8 dígitos. CEPs fictícios, como 55555555, não são aceitos.";e.classList.remove("hidden");return;}
+    if(!/[A-Za-zÀ-ÿ]/.test(values.city)||/^[0-9\s-]+$/.test(values.city)){e.textContent="Informe uma cidade válida, usando o nome da cidade.";e.classList.remove("hidden");return;}
     const refs=[];for(let i=1;i<=5;i++){const name=get(`ref${i}Name`),phone=get(`ref${i}Phone`);if(!name||!phone){e.textContent=`Preencha o nome e telefone da referência ${i}.`;e.classList.remove("hidden");return;}refs.push({nome:name,telefone:phone,ordem:i,contato_verificado:false});}
     pendingProfessionalSignup={values,refs};
     const {data,error}=await sb.auth.signUp({email:values.email,password:values.pass,options:{data:{nome:values.name,tipo:"profissional"}}});
@@ -124,7 +176,7 @@ async function finishProfessionalSignup(user){
     const v=pending.values;
     const profile=await ensureUserProfile(user,v.name,"profissional",v.phone,v.city,v.state);
     if(profile.error){const e=document.getElementById("otpError")||document.getElementById("proRegisterError");e.textContent=profile.error.message;e.classList.remove("hidden");return;}
-    const {data:pro,error:proError}=await sb.from("profissionais").insert({usuario_id:user.id,nome:v.name,telefone:v.phone,email:v.email,data_nascimento:v.birth,cidade:v.city,estado:v.state,profissao:v.job,experiencia:v.experience,descricao:v.description,status:"pendente",verificado:false}).select().single();
+    const {data:pro,error:proError}=await sb.from("profissionais").insert({usuario_id:user.id,nome:v.name,telefone:v.phone,email:v.email,data_nascimento:v.birth,cidade:v.city,estado:v.state,cep:v.cep,profissao:v.job,experiencia:v.experience,descricao:v.description,status:"pendente",verificado:false}).select().single();
     if(proError){const e=document.getElementById("otpError")||document.getElementById("proRegisterError");e.textContent=proError.message;e.classList.remove("hidden");return;}
     const refs=pending.refs.map(r=>({...r,profissional_id:pro.id}));
     const {error:refError}=await sb.from("referencias").insert(refs);
@@ -133,7 +185,7 @@ async function finishProfessionalSignup(user){
     closeModal();openModal(`<div class="success-icon">✓</div><h2>Cadastro enviado!</h2><p>Seu cadastro foi enviado para análise. A equipe verificará suas 5 referências antes da aprovação.</p><div class="notice">Você só aparecerá como profissional após a aprovação.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);
 }
 async function ensureUserProfile(user,name,tipo,telefone="",cidade="",estado=""){
-    const {data,error}=await sb.from("usuarios").upsert({id:user.id,nome:name,telefone,cidade,estado,tipo},{onConflict:"id"}).select().single();
+    const {data,error}=await sb.from("usuarios").upsert({id:user.id,nome:name,email:user.email||"",telefone,cidade,estado,tipo,status:"ativo"},{onConflict:"id"}).select().single();
     return {data,error};
 }
 function login(){openModal(`<div class="login-modal-head"><div class="success-icon">✉</div><h2>Entrar na ResolveJá</h2><p>Digite seu Gmail e nós enviaremos um código de acesso.</p></div><div class="form-group"><label>E-mail</label><input id="loginUser" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></div><div id="loginError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="sendLoginCode()">Enviar código</button><div class="modal-divider">Ainda não tem conta?</div><button class="btn btn-outline" style="width:100%" onclick="openRegister()">Crie sua conta</button>`)}
@@ -167,6 +219,15 @@ async function routeAuthenticatedUser(user){
     const {data:admin}=await sb.from("administradores").select("cargo,ativo").eq("usuario_id",user.id).eq("ativo",true).maybeSingle();
     closeModal();
     if(admin){const isMaster=String(admin.cargo||"").toLowerCase()==="master";window.resolveJaIsAdmin=true;enterAdmin(isMaster);return;}
+    const {data:account}=await sb.from("usuarios").select("status,punicao_expira_em,motivo_punicao").eq("id",user.id).maybeSingle();
+    if(account?.status==="punido") {
+        const expires=account.punicao_expira_em?new Date(account.punicao_expira_em):null;
+        if(!expires || expires>new Date()){
+            await sb.auth.signOut();
+            openModal(`<h2>Conta temporariamente bloqueada</h2><div class="notice">${escapeHtml(account.motivo_punicao||"Sua conta foi punida pela equipe da ResolveJá.")}${expires?`<br>Até: ${expires.toLocaleString("pt-BR")}`:"<br>Bloqueio permanente."}</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);
+            return;
+        }
+    }
     window.resolveJaIsAdmin=false;
     const {data:professional}=await sb.from("profissionais").select("id,nome,status,verificado,profissao").eq("usuario_id",user.id).maybeSingle();
     if(professional){
@@ -237,6 +298,7 @@ async function saveClientSettings(){
     const city=document.getElementById("settingsCity").value.trim();
     const state=document.getElementById("settingsState").value.trim().toUpperCase();
     if(!name){showNotice("settingsNotice","Informe seu nome.");return;}
+    if(city && (!/[A-Za-zÀ-ÿ]/.test(city)||/^[0-9\s-]+$/.test(city))){showNotice("settingsNotice","Informe uma cidade válida.");return;}
     const {error}=await sb.from("usuarios").upsert({id:user.id,nome:name,cidade:city,estado:state,tipo:"cliente"},{onConflict:"id"});
     if(error){showNotice("settingsNotice",error.message);return;}
     showNotice("settingsNotice","Dados salvos com sucesso.",true);
@@ -312,10 +374,9 @@ async function openChat(professionalId,name){
     }
     const {data:conversation,error}=await ensureConversation(user.id,professionalId);
     if(error||!conversation){openModal(`<h2>Não foi possível abrir o chat</h2><div class="notice">${escapeHtml(error?.message||"Tente novamente.")}</div>`);return;}
-    openModal(`<h2>Conversar com ${escapeHtml(name||pro.nome)}</h2><div id="chatMessages" class="chat-messages"><p class="chat-empty">Carregando mensagens...</p></div><div class="chat-compose"><textarea id="chatInput" rows="2" maxlength="1000" placeholder="Digite sua mensagem..."></textarea><button class="btn btn-primary" onclick="sendChatMessage('${conversation.id}')">Enviar mensagem</button></div>`);
+    openModal(`<h2>Chat com ${escapeHtml(name||pro.nome)}</h2><div id="chatMessages" class="chat-messages"><p class="chat-empty">Carregando mensagens...</p></div><div id="chatSecurityNotice" class="notice">🛡️ Não envie telefone, WhatsApp, @usuários ou contatos externos. Tentativas são bloqueadas e encaminhadas para denúncias.</div><div class="chat-compose"><textarea id="chatInput" rows="2" maxlength="1000" placeholder="Digite sua mensagem..."></textarea><button class="btn btn-primary" onclick="sendChatMessage('${conversation.id}')">Enviar</button></div>`);
     await loadChatMessages(conversation.id);
 }
-
 async function loadChatMessages(conversationId){
     const box=document.getElementById("chatMessages");
     if(!box)return;
@@ -326,22 +387,16 @@ async function loadChatMessages(conversationId){
     box.innerHTML=data.map(m=>`<div class="chat-bubble ${m.remetente_id===user.id?"mine":"theirs"}"><p>${escapeHtml(m.conteudo)}</p><small>${new Date(m.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</small></div>`).join("");
     box.scrollTop=box.scrollHeight;
 }
-
 async function sendChatMessage(conversationId){
     const input=document.getElementById("chatInput");
     const text=input?.value.trim();
     if(!text)return;
-    const {data:{user}}=await sb.auth.getUser();
-    if(!user)return;
-    const {error}=await sb.from("mensagens").insert({conversa_id:conversationId,remetente_id:user.id,conteudo:text});
-    if(error){showNoticeInChat(error.message);return;}
+    const result=await sendSecureMessage(conversationId,text);
+    if(result.blocked||result.error){showNoticeInChat(result.error.message);return;}
     input.value="";
     await loadChatMessages(conversationId);
 }
-function showNoticeInChat(text){
-    const box=document.getElementById("chatMessages");
-    if(box)box.insertAdjacentHTML("beforeend",`<div class="notice">${escapeHtml(text)}</div>`);
-}
+function showNoticeInChat(text){const box=document.getElementById("chatSecurityNotice")||document.getElementById("chatMessages");if(box){box.textContent=text;box.classList.remove("hidden");}}
 
 async function enterProfessional(pro){
     document.getElementById("publicNav").classList.add("hidden");
@@ -361,24 +416,43 @@ async function loadProfessionalServices(){
     const {data:pro}=await sb.from("profissionais").select("id,nome,profissao,status,verificado").eq("usuario_id",user.id).maybeSingle();
     const box=document.getElementById("professionalServiceList");
     if(!box||!pro)return;
-    const {data:convs,error}=await sb.from("conversas").select("id,cliente_id,criado_em").eq("profissional_id",pro.id).order("criado_em",{ascending:false});
+    const {data:convs,error}=await sb.from("conversas").select("id,cliente_id,criado_em,atualizado_em").eq("profissional_id",pro.id).order("atualizado_em",{ascending:false});
     if(error){box.innerHTML=`<div class="notice">Não foi possível carregar seus chats.</div>`;return;}
-    if(!convs?.length){box.innerHTML=`<div class="panel"><h3>Nenhum chat ainda</h3><p>Quando um cliente entrar em contato, a conversa aparecerá aqui.</p></div>`;return;}
+    const count=document.getElementById("professionalChatCount"); if(count)count.textContent=String(convs?.length||0);
+    if(!convs?.length){box.innerHTML=`<div class="chat-empty">Nenhum cliente entrou em contato ainda.</div>`;return;}
     const ids=[...new Set(convs.map(c=>c.cliente_id))];
     const {data:users}=await sb.from("usuarios").select("id,nome").in("id",ids);
     const names=new Map((users||[]).map(u=>[u.id,u.nome]));
-    box.innerHTML=convs.map(c=>`<button class="professional-chat-row" onclick="openProfessionalChat('${c.id}','${escapeHtml(names.get(c.cliente_id)||"Cliente")}')"><span class="avatar">${escapeHtml((names.get(c.cliente_id)||"C").split(/\s+/).slice(0,2).map(x=>x[0]).join("").toUpperCase())}</span><span><b>${escapeHtml(names.get(c.cliente_id)||"Cliente")}</b><small>Conversa com você • ${new Date(c.criado_em).toLocaleDateString("pt-BR")}</small></span><strong>›</strong></button>`).join("");
+    box.innerHTML=convs.map(c=>{const n=names.get(c.cliente_id)||"Cliente";const initials=n.split(/\s+/).slice(0,2).map(x=>x[0]).join("").toUpperCase();return `<button class="professional-chat-row" onclick="openProfessionalChat('${c.id}','${escapeHtml(n)}')"><span class="avatar">${escapeHtml(initials)}</span><span><b>${escapeHtml(n)}</b><small>Cliente • ${new Date(c.atualizado_em||c.criado_em).toLocaleDateString("pt-BR")}</small></span><strong>›</strong></button>`;}).join("");
 }
-
 async function openProfessionalChat(conversationId,name){
     const {data:{user}}=await sb.auth.getUser();
     if(!user)return;
-    openModal(`<h2>Chat com ${escapeHtml(name)}</h2><div id="chatMessages" class="chat-messages"><p class="chat-empty">Carregando mensagens...</p></div><div class="chat-compose"><textarea id="chatInput" rows="2" maxlength="1000" placeholder="Digite sua mensagem..."></textarea><button class="btn btn-primary" onclick="sendChatMessage('${conversationId}')">Enviar mensagem</button></div>`);
-    await loadChatMessages(conversationId);
+    document.getElementById("professionalChatPlaceholder")?.classList.add("hidden");
+    const active=document.getElementById("professionalChatActive");active?.classList.remove("hidden");
+    const nameEl=document.getElementById("professionalChatClientName");if(nameEl)nameEl.textContent=name;
+    const avatar=document.getElementById("professionalChatClientAvatar");if(avatar)avatar.textContent=name.split(/\s+/).slice(0,2).map(x=>x[0]).join("").toUpperCase();
+    const input=document.getElementById("professionalChatInput");if(input)input.dataset.conversationId=conversationId;
+    await loadProfessionalChatMessages(conversationId);
+}
+async function loadProfessionalChatMessages(conversationId){
+    const box=document.getElementById("professionalChatMessages");if(!box)return;
+    const {data,error}=await sb.from("mensagens").select("id,remetente_id,conteudo,criado_em").eq("conversa_id",conversationId).order("criado_em",{ascending:true});
+    const {data:{user}}=await sb.auth.getUser();
+    if(error){box.innerHTML=`<div class="notice">Não foi possível carregar as mensagens.</div>`;return;}
+    if(!data?.length){box.innerHTML=`<p class="chat-empty">Nenhuma mensagem ainda.</p>`;return;}
+    box.innerHTML=data.map(m=>`<div class="chat-bubble ${m.remetente_id===user.id?"mine":"theirs"}"><p>${escapeHtml(m.conteudo)}</p><small>${new Date(m.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</small></div>`).join("");box.scrollTop=box.scrollHeight;
+}
+async function sendProfessionalMessage(){
+    const input=document.getElementById("professionalChatInput");const conversationId=input?.dataset.conversationId;const text=input?.value.trim();if(!conversationId||!text)return;
+    const result=await sendSecureMessage(conversationId,text);
+    const notice=document.getElementById("professionalChatNotice");
+    if(result.blocked||result.error){if(notice){notice.textContent=result.error.message;notice.classList.remove("hidden");}return;}
+    if(notice)notice.classList.add("hidden");input.value="";await loadProfessionalChatMessages(conversationId);await loadProfessionalServices();
 }
 
 async function loadProfessionalApplication(id){
-    const {data:pro,error}=await sb.from("profissionais").select("id,nome,telefone,email,data_nascimento,cidade,estado,profissao,experiencia,descricao,status,verificado,criado_em").eq("id",id).single();
+    const {data:pro,error}=await sb.from("profissionais").select("id,nome,telefone,email,data_nascimento,cidade,estado,cep,profissao,experiencia,descricao,status,verificado,criado_em").eq("id",id).single();
     if(error||!pro)return null;
     const {data:refs}=await sb.from("referencias").select("id,nome,telefone,ordem,contato_verificado,observacao").eq("profissional_id",id).order("ordem");
     return {pro,refs:refs||[]};
@@ -389,7 +463,7 @@ async function analyzeApplication(id){
     const p=item.pro;
     const options=categories.map(c=>`<option value="${escapeHtml(c[1])}" ${String(p.profissao||"")===c[1]?"selected":""}>${escapeHtml(c[1])}</option>`).join("");
     const refs=item.refs.map(r=>`<div class="reference-admin"><b>${r.ordem}. ${escapeHtml(r.nome)}</b><span>${escapeHtml(r.telefone)}</span><span>${r.contato_verificado?"✓ Contato verificado":"○ Ainda não verificado"}</span>${r.observacao?`<small>${escapeHtml(r.observacao)}</small>`:""}</div>`).join("");
-    openModal(`<h2>Análise do profissional</h2><div class="analysis-grid"><div><b>Nome</b><span>${escapeHtml(p.nome)}</span></div><div><b>E-mail</b><span>${escapeHtml(p.email||"")}</span></div><div><b>Telefone</b><span>${escapeHtml(p.telefone||"")}</span></div><div><b>Cidade</b><span>${escapeHtml(p.cidade||"")}${p.estado?", "+escapeHtml(p.estado):""}</span></div><div><b>Nascimento</b><span>${escapeHtml(p.data_nascimento||"Não informado")}</span></div><div><b>Experiência</b><span>${escapeHtml(p.experiencia||"Não informado")}</span></div></div><div class="form-group"><label>Categoria do profissional</label><select id="analysisCategory">${options}</select></div><div class="form-group"><label>Descrição</label><textarea id="analysisDescription" rows="4">${escapeHtml(p.descricao||"")}</textarea></div><div class="panel" style="margin-top:10px"><h3>5 referências</h3>${refs||"<p>Nenhuma referência encontrada.</p>"}</div><div id="analysisError" class="notice hidden"></div><div class="analysis-actions"><button class="btn btn-danger" onclick="reviewProfessional('${id}','rejeitado')">Rejeitar</button><button class="btn btn-primary" onclick="reviewProfessional('${id}','aprovado')">Aprovar profissional</button></div>`);
+    openModal(`<h2>Análise do profissional</h2><div class="analysis-grid"><div><b>Nome</b><span>${escapeHtml(p.nome)}</span></div><div><b>E-mail</b><span>${escapeHtml(p.email||"")}</span></div><div><b>Telefone</b><span>${escapeHtml(p.telefone||"")}</span></div><div><b>Cidade</b><span>${escapeHtml(p.cidade||"")}${p.estado?", "+escapeHtml(p.estado):""}</span></div><div><b>CEP</b><span>${escapeHtml(p.cep||"Não informado")}</span></div><div><b>Nascimento</b><span>${escapeHtml(p.data_nascimento||"Não informado")}</span></div><div><b>Experiência</b><span>${escapeHtml(p.experiencia||"Não informado")}</span></div></div><div class="form-group"><label>Categoria do profissional</label><select id="analysisCategory">${options}</select></div><div class="form-group"><label>Descrição</label><textarea id="analysisDescription" rows="4">${escapeHtml(p.descricao||"")}</textarea></div><div class="panel" style="margin-top:10px"><h3>5 referências</h3>${refs||"<p>Nenhuma referência encontrada.</p>"}</div><div id="analysisError" class="notice hidden"></div><div class="analysis-actions"><button class="btn btn-danger" onclick="reviewProfessional('${id}','rejeitado')">Rejeitar</button><button class="btn btn-primary" onclick="reviewProfessional('${id}','aprovado')">Aprovar profissional</button></div>`);
 }
 async function reviewProfessional(id,status){
     if(!window.resolveJaIsMaster && !window.resolveJaIsAdmin){openModal(`<h2>Acesso negado</h2><p>Você não tem permissão para analisar profissionais.</p>`);return;}
@@ -420,14 +494,53 @@ async function adminPage(page,el){
         if(error){box.innerHTML=`<div class="notice">Não foi possível carregar profissionais.</div>`;return;}
         box.innerHTML=(data||[]).map(p=>`<div class="admin-application"><div><b>${escapeHtml(p.nome)}</b><span>${escapeHtml(p.profissao||"")} • ${escapeHtml(p.cidade||"")}${p.estado?", "+escapeHtml(p.estado):""}</span></div><span class="status">${escapeHtml(p.status||"")}</span></div>`).join("")||"<p>Nenhum profissional cadastrado.</p>";
     }
-    else if(page==="users")c.innerHTML=`<h2>Usuários</h2><div class="panel"><p>Gerenciamento de contas de clientes.</p></div>`;
-    else if(page==="reports")c.innerHTML=`<h2>Denúncias</h2><div class="panel"><p>Denúncias aguardando revisão.</p></div>`;
-    else if(page==="logs")c.innerHTML=`<h2>Registros</h2><div class="panel"><p>Auditoria administrativa.</p></div>`;
+    else if(page==="users"){
+        c.innerHTML=`<h2>Usuários</h2><p style="color:#718078">Pesquise usuários, veja o estado da conta e aplique punições.</p><div class="panel"><div class="admin-search-row"><input id="adminUserSearch" placeholder="Pesquisar por nome ou e-mail"><button class="btn btn-primary" onclick="searchAdminUsers()">Pesquisar</button></div><div id="adminUserResults"><p>Digite uma busca para pesquisar.</p></div></div>`;
+    }
+    else if(page==="reports"){
+        c.innerHTML=`<h2>Denúncias</h2><p style="color:#718078">Tentativas de compartilhamento de contatos e outras ocorrências.</p><div id="reportsList" class="panel"><p>Carregando...</p></div>`;
+        loadAdminReports();
+    }
+    else if(page==="logs")c.innerHTML=`<h2>Registros</h2><div class="panel"><p>Auditoria administrativa protegida por RLS.</p></div>`;
     else if(page==="admins"){
         c.innerHTML=`<h2>Administradores</h2><p style="color:#718078">A Conta Mestre pode cadastrar novos administradores.</p><div class="panel"><div class="form-group"><label>Nome</label><input id="newAdminName" placeholder="Nome do administrador"></div><div class="form-group"><label>E-mail</label><input id="newAdminEmail" type="email" placeholder="admin@gmail.com"></div><div class="form-group"><label>Senha</label><input id="newAdminPass" type="password" placeholder="Senha do administrador"></div><div id="newAdminError" class="notice hidden"></div><button class="btn btn-primary" onclick="createAdminAccount()">Criar conta de ADM</button></div>`;
     }
     else c.innerHTML=`<h2>Configurações</h2><div class="panel"><p>Configurações da plataforma e da conta administrativa.</p></div>`;
 }
+async function searchAdminUsers(){
+    if(!window.resolveJaIsAdmin)return;
+    const q=(document.getElementById("adminUserSearch")?.value||"").trim();const box=document.getElementById("adminUserResults");if(!box)return;
+    let query=sb.from("usuarios").select("id,nome,email,telefone,cidade,estado,tipo,status,punicao_expira_em,motivo_punicao,criado_em").order("criado_em",{ascending:false}).limit(50);
+    if(q)query=query.or(`nome.ilike.%${q}%,email.ilike.%${q}%`);
+    const {data,error}=await query;
+    if(error){box.innerHTML=`<div class="notice">Não foi possível pesquisar usuários. ${escapeHtml(error.message)}</div>`;return;}
+    if(!data?.length){box.innerHTML=`<p>Nenhum usuário encontrado.</p>`;return;}
+    box.innerHTML=data.map(u=>{const blocked=u.status&&u.status!=="ativo";return `<div class="admin-user-row"><div><b>${escapeHtml(u.nome||"Sem nome")}</b><span>${escapeHtml(u.tipo||"cliente")} • ${escapeHtml(u.cidade||"")}${u.estado?", "+escapeHtml(u.estado):""}</span><small>${escapeHtml(u.email||"")} • ${blocked?"⛔ "+escapeHtml(u.motivo_punicao||"Conta punida"):"✅ Conta ativa"}</small></div><div class="admin-user-actions"><button class="btn btn-danger" onclick="punishUser('${u.id}')">Punir</button><button class="btn btn-outline" onclick="clearUserPunishment('${u.id}')">Liberar</button></div></div>`;}).join("");
+}
+async function punishUser(userId){
+    if(!window.resolveJaIsAdmin)return;
+    openModal(`<h2>Punir usuário</h2><p>A conta ficará bloqueada dentro da ResolveJá.</p><div class="form-group"><label>Duração</label><select id="punishDuration"><option value="5">5 minutos</option><option value="60">1 hora</option><option value="1440">24 horas</option><option value="10080">7 dias</option><option value="0">Permanente</option></select></div><div class="form-group"><label>Motivo</label><input id="punishReason" placeholder="Motivo da punição"></div><div id="punishError" class="notice hidden"></div><button class="btn btn-danger" style="width:100%" onclick="applyPunishment('${userId}')">Aplicar punição</button>`);
+}
+async function applyPunishment(userId){
+    if(!window.resolveJaIsAdmin)return;
+    const duration=Number(document.getElementById("punishDuration")?.value||0);const reason=document.getElementById("punishReason")?.value.trim()||"Violação das regras da ResolveJá";const e=document.getElementById("punishError");
+    const {data,error}=await sb.rpc("punir_usuario_resolveja",{p_usuario_id:userId,p_minutos:duration,p_motivo:reason});
+    if(error){e.textContent=error.message;e.classList.remove("hidden");return;}closeModal();adminPage("users",document.querySelectorAll(".side-btn")[3]);
+}
+async function clearUserPunishment(userId){
+    if(!window.resolveJaIsAdmin)return;
+    const {error}=await sb.rpc("liberar_usuario_resolveja",{p_usuario_id:userId});
+    if(error){openModal(`<h2>Não foi possível liberar</h2><div class="notice">${escapeHtml(error.message)}</div>`);return;}
+    searchAdminUsers();
+}
+async function loadAdminReports(){
+    const box=document.getElementById("reportsList");if(!box)return;
+    const {data,error}=await sb.from("denuncias_seguranca").select("id,denunciante_id,usuario_denunciado_id,tipo,descricao,status,criado_em").order("criado_em",{ascending:false}).limit(100);
+    if(error){box.innerHTML=`<div class="notice">Não foi possível carregar as denúncias. ${escapeHtml(error.message)}</div>`;return;}
+    if(!data?.length){box.innerHTML=`<h3>Nenhuma denúncia</h3><p>Não há ocorrências registradas.</p>`;return;}
+    box.innerHTML=data.map(r=>`<div class="report-row"><div><b>${escapeHtml(r.tipo)}</b><span>${new Date(r.criado_em).toLocaleString("pt-BR")}</span><p>${escapeHtml(r.descricao||"")}</p></div><span class="status">${escapeHtml(r.status||"pendente")}</span><button class="btn btn-danger" onclick="punishUser('${r.usuario_denunciado_id}')">Punir usuário</button></div>`).join("");
+}
+
 async function createAdminAccount(){
     if(!window.resolveJaIsMaster){return;}
     const name=document.getElementById("newAdminName")?.value.trim();
