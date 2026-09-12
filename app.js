@@ -4,592 +4,117 @@ const categories = [
 
 
 
+
 const SUPABASE_URL = window.RESOLVEJA_CONFIG?.SUPABASE_URL || "";
 const SUPABASE_KEY = window.RESOLVEJA_CONFIG?.SUPABASE_PUBLISHABLE_KEY || "";
 const supabaseReady = Boolean(SUPABASE_URL && SUPABASE_KEY && window.supabase);
 const sb = supabaseReady ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+let pendingClientSignup=null,pendingProfessionalSignup=null;
 
-function showPage(id){
-    document.querySelectorAll(".page").forEach(p=>p.classList.remove("active-page"));
-    const page=document.getElementById(id);
-    if(!page)return;
-    page.classList.add("active-page");
-    document.querySelectorAll(".nav-link").forEach(b=>b.classList.toggle("active",b.dataset.page===id));
-    window.scrollTo({top:0,behavior:"smooth"});
-}
-function renderClientCategories(){
-    const grid=document.getElementById("clientCategoryGrid");
-    if(!grid)return;
-    grid.innerHTML=categories.slice(0,12).map(c=>`<button class="mini-category" onclick="openProfessionals('${c[1].replace(/'/g,"\\'")}')"><span>${c[0]}</span><b>${escapeHtml(c[1])}</b></button>`).join("");
-}
-
-function renderServices(){
-    const q=(document.getElementById("serviceSearch")?.value||"").toLowerCase();
-    const grid=document.getElementById("categoryGrid");
-    if(!grid)return;
-    grid.innerHTML=categories.filter(c=>(c[1]+" "+c[2]).toLowerCase().includes(q)).map(c=>`<button class="category" onclick="openProfessionals('${c[1].replace(/'/g,"\\'")}')"><span class="ico">${c[0]}</span><b>${c[1]}</b><small>${c[2]}</small></button>`).join("");
-}
-async function renderPros(cat="Profissionais disponíveis"){
-    const grid=document.getElementById("proGrid");
-    if(!grid)return;
-    let list=[];
-    if(sb){
-        const {data,error}=await sb.from("profissionais").select("id,nome,cidade,estado,profissao,experiencia,descricao,verificado,status").eq("status","aprovado").eq("verificado",true).order("criado_em",{ascending:false});
-        if(!error)list=data||[];
-    }
-    if(cat && cat!=="Profissionais disponíveis")list=list.filter(p=>String(p.profissao||"").toLowerCase().includes(cat.toLowerCase()));
-    if(!list.length){grid.innerHTML=`<div class="panel"><h3>Nenhum profissional encontrado</h3><p>Não encontramos profissionais aprovados nessa categoria ainda.</p></div>`;return;}
-    grid.innerHTML=list.map(p=>{
-        const initials=(p.nome||"RJ").split(/\s+/).slice(0,2).map(x=>x[0]).join("").toUpperCase();
-        const rating=p.rating||"—";
-        const jobs=p.jobs||0;
-        return `<article class="pro-card"><div class="pro-top"><div class="avatar">${p.initials||initials}</div><div><h3>${escapeHtml(p.nome)}</h3><div class="role">${escapeHtml(p.profissao||"")} • ${escapeHtml(p.cidade||"")}${p.estado?" - "+escapeHtml(p.estado):""}</div></div><span class="verified">✓</span></div><div class="rating">★★★★★ <span>${rating}</span></div><p>${escapeHtml(p.descricao||"Profissional verificado pela ResolveJá.")}</p><div class="chips">${(p.tags||[]).map(t=>`<span class="chip">${escapeHtml(t)}</span>`).join("")}</div><button class="btn btn-primary" style="width:100%;margin-top:15px" onclick="contactPro('${p.id||""}','${String(p.nome||"").replace(/'/g,"\\'")}')">Ver perfil</button></article>`;
-    }).join("");
-}
-function escapeHtml(v){return String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));}
-function openProfessionals(cat){showPage("professionals");document.getElementById("proTitle").textContent=cat+" — profissionais";renderPros(cat);}
-async function contactPro(id,name){
-    if(!sb||!id){
-        openModal(`<h2>${escapeHtml(name)}</h2><p>Este perfil não está disponível no banco de dados.</p><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Fechar</button>`);return;
-    }
-    const {data,error}=await sb.from("profissionais").select("id,nome,cidade,estado,profissao,experiencia,descricao,verificado,status").eq("id",id).single();
-    if(error||!data){openModal(`<h2>Não foi possível abrir o perfil</h2><div class="notice">Tente novamente.</div>`);return;}
-    openModal(`<h2>${escapeHtml(data.nome)}</h2><p><b>${escapeHtml(data.profissao)}</b> • ${escapeHtml(data.cidade||"")}${data.estado?" - "+escapeHtml(data.estado):""}</p><p>${escapeHtml(data.descricao||"Sem descrição.")}</p><p><b>Experiência:</b> ${escapeHtml(data.experiencia||"Não informado")}</p><div class="notice">🛡️ Para sua segurança, telefone, WhatsApp, @usuários e contatos externos não podem ser compartilhados pelo chat.</div><button class="btn btn-primary" style="width:100%" onclick="requestService('${data.id}')">Solicitar serviço</button><button class="btn btn-outline" style="width:100%;margin-top:8px" onclick="openChat('${data.id}','${String(data.nome||"").replace(/'/g,"\'")}')">Enviar mensagem</button>`);
-}
-
-function normalizeDigits(v){return String(v||"").replace(/\D/g,"");}
-function looksLikeFakeNumber(v){
-    let d=normalizeDigits(v);
-    if(d.startsWith("55")&&d.length===13)d=d.slice(2);
-    if(!d)return false;
-    if(/^([0-9])\1+$/.test(d))return true;
-    if(d.length>=6 && /^(0123456789|1234567890|9876543210)$/.test(d))return true;
-    if(d.length>=6 && (d.length===6||d.length===7||d.length===8||d.length===9||d.length===10||d.length===11) && /^0+$/.test(d))return true;
-    return false;
-}
-function isValidBrazilPhone(v){
-    let d=normalizeDigits(v);
-    if(d.startsWith("55")&&d.length===13)d=d.slice(2);
-    return d.length===10||d.length===11;
-}
-function isValidCep(v){
-    const d=normalizeDigits(v);
-    return d.length===8&&!looksLikeFakeNumber(d);
-}
-function hasContactAttempt(text){
-    const raw=String(text||"").toLowerCase();
-    const compact=raw.replace(/[^a-z0-9]/g,"");
-    const digits=raw.replace(/\D/g,"");
-    const spacedDigits=raw.replace(/[^0-9]/g,"");
-    const contactWords=/\b(whatsapp|whats|zap|wpp|wa\.me|telegram|insta|instagram|facebook|tiktok)\b/i.test(raw);
-    const handle=/@[a-z0-9_.-]{3,}/i.test(raw);
-    const phonePattern=/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?9?\s*\d{4}\s*[-. ]?\s*\d{4}/.test(raw);
-    const longDigits=digits.length>=6;
-    const repeated=spacedDigits.length>=6 && /^(\d)\1{5,}$/.test(spacedDigits);
-    const separatedDigits=(raw.match(/\d/g)||[]).length>=6 && /(?:\d\s*){6,}/.test(raw);
-    const writtenNumbers=/(cinco|seis|sete|oito|nove|zero|um|dois|tr[eê]s|quatro)(?:\s+(?:cinco|seis|sete|oito|nove|zero|um|dois|tr[eê]s|quatro)){5,}/i.test(raw);
-    return contactWords||handle||phonePattern||longDigits||repeated||separatedDigits||writtenNumbers;
-}
-async function reportContactAttempt(text,conversationId=null){
-    if(!sb)return;
-    const {data:{user}}=await sb.auth.getUser();
-    if(!user)return;
-    await sb.rpc("registrar_tentativa_contato_resolveja",{p_conversa_id:conversationId,p_conteudo:String(text).slice(0,1000)});
-}
-async function sendSecureMessage(conversationId,text){
-    const clean=String(text||"").trim();
-    if(!clean)return {error:{message:"Digite uma mensagem."},blocked:false};
-    if(hasContactAttempt(clean)){
-        await reportContactAttempt(clean,conversationId);
-        return {blocked:true,error:{message:"Mensagem bloqueada. A tentativa de compartilhar telefone, WhatsApp, usuário ou outro contato externo foi registrada para análise da equipe."}};
-    }
-    const {data,error}=await sb.from("mensagens").insert({conversa_id:conversationId,remetente_id:(await sb.auth.getUser()).data.user.id,conteudo:clean});
-    return {data,error,blocked:false};
-}
-
-function openModal(content){document.getElementById("modalContent").innerHTML=content;document.getElementById("modal").classList.remove("hidden")}
-function closeModal(){document.getElementById("modal").classList.add("hidden")}
-function requireBackend(){if(!supabaseReady){openModal(`<h2>Conecte o Supabase</h2><p>Abra <b>config.js</b> e coloque a URL e a chave publishable do seu projeto Supabase.</p><div class="notice">Nunca coloque a chave service_role no site.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);return false}return true}
-let pendingClientSignup=null;
-let pendingProfessionalSignup=null;
-
-function markField(id,valid){const el=document.getElementById(id);if(!el)return;el.classList.toggle("field-invalid",!valid);el.classList.toggle("field-valid",valid);}
-function onlyLettersValue(value){return /^[A-Za-zÀ-ÿ\s.'-]+$/.test(String(value||"").trim());}
-function onlyNumberValue(value){return /^\d+$/.test(String(value||"").replace(/\s/g,""));}
-function maskBrazilPhone(value){let d=String(value||"").replace(/\D/g,"").slice(0,13);if(d.startsWith("55"))d=d.slice(2);d=d.slice(0,11);let out="+55 ";if(d.length){out+=d.slice(0,2);if(d.length>=2)out+=" ";}if(d.length>2){out+=d.slice(2,3);if(d.length>=3)out+=" ";}if(d.length>3){out+=d.slice(3,7);if(d.length>=7)out+="-";}if(d.length>7)out+=d.slice(7,11);return out;}
-function wireProfessionalFieldRules(){
- const textIds=["proName","proCity","proState","proJob","ref1Name","ref2Name","ref3Name","ref4Name","ref5Name"];
- const numericIds=["proBirth","proExperienceYears"];
- textIds.forEach(id=>{const el=document.getElementById(id);if(!el)return;el.addEventListener("input",()=>{if(id==="proState")el.value=el.value.replace(/[^A-Za-zÀ-ÿ]/g,"").slice(0,2).toUpperCase();else el.value=el.value.replace(/[0-9]/g,"");markField(id,el.value.trim()!==""&&onlyLettersValue(el.value));});});
- ["proPhone","ref1Phone","ref2Phone","ref3Phone","ref4Phone","ref5Phone"].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.setAttribute("inputmode","tel");el.setAttribute("maxlength","18");el.addEventListener("input",()=>{el.value=maskBrazilPhone(el.value);markField(id,isValidBrazilPhone(el.value));});});
- const cep=document.getElementById("proCep");if(cep){cep.addEventListener("input",()=>{cep.value=cep.value.replace(/\D/g,"").slice(0,8).replace(/^(\d{5})(\d)/,"$1-$2");markField("proCep",isValidCep(cep.value));if(cep.value.replace(/\D/g,"").length===8)lookupCep(cep.value);});}
- const state=document.getElementById("proState");if(state)state.addEventListener("input",()=>markField("proState",/^[A-Z]{2}$/.test(state.value)));
- ["proExperience","proNumber"].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.addEventListener("input",()=>{el.value=el.value.replace(/\D/g,"");markField(id,el.value.trim()!=="");});});
-}
-async function lookupCep(value){const cep=String(value).replace(/\D/g,"");if(cep.length!==8)return;const status=document.getElementById("cepStatus");try{if(status)status.textContent="Buscando endereço...";const r=await fetch(`https://viacep.com.br/ws/${cep}/json/`);const data=await r.json();if(data.erro){markField("proCep",false);if(status)status.textContent="CEP não encontrado.";return;}const address=document.getElementById("proAddress"),city=document.getElementById("proCity"),state=document.getElementById("proState"),district=document.getElementById("proDistrict");if(address)address.value=data.logradouro||"";if(district)district.value=data.bairro||"";if(city)city.value=data.localidade||"";if(state)state.value=data.uf||"";markField("proCep",true);markField("proCity",!!data.localidade);markField("proState",!!data.uf);if(status)status.textContent=`Endereço encontrado: ${data.logradouro||""}${data.bairro?`, ${data.bairro}`:""} — ${data.localidade||""}/${data.uf||""}`;}catch(err){if(status)status.textContent="Não foi possível consultar o CEP agora. Tente novamente.";}}
-function validateProfessionalFields(values){let ok=true;const required=["proName","proPhone","proEmail","proPass","proBirth","proCep","proCity","proState","proJob","proExperience","proDescription","proAddress","proNumber","proDistrict"];required.forEach(id=>{const el=document.getElementById(id);const valid=!!el&&String(el.value||"").trim()!=="";markField(id,valid);if(!valid)ok=false;});
- if(!isValidBrazilPhone(values.phone)||looksLikeFakeNumber(values.phone)){markField("proPhone",false);ok=false;}else markField("proPhone",true);
- if(!isValidCep(values.cep)){markField("proCep",false);ok=false;}else markField("proCep",true);
- if(!/^[A-Za-zÀ-ÿ]{2}$/.test(values.state)){markField("proState",false);ok=false;}else markField("proState",true);
- ["proName","proCity","proJob"].forEach(id=>{const el=document.getElementById(id);if(el&&!onlyLettersValue(el.value)){markField(id,false);ok=false;}});
- const email=document.getElementById("proEmail");if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())){markField("proEmail",false);ok=false;}else if(email)markField("proEmail",true);const pass=document.getElementById("proPass");if(pass&&pass.value.length<6){markField("proPass",false);ok=false;}else if(pass)markField("proPass",true);const birth=document.getElementById("proBirth");if(birth&&!birth.value){markField("proBirth",false);ok=false;}else if(birth)markField("proBirth",true);const n=document.getElementById("proNumber");if(n&&!/^\d+$/.test(n.value.trim())){markField("proNumber",false);ok=false;}else if(n)markField("proNumber",true);const exp=document.getElementById("proExperience");if(exp&&!/^\d+$/.test(exp.value.trim())){markField("proExperience",false);ok=false;}else if(exp)markField("proExperience",true);
- [1,2,3,4,5].forEach(i=>{const n=document.getElementById(`ref${i}Name`),ph=document.getElementById(`ref${i}Phone`);if(!n||!onlyLettersValue(n.value)||!n.value.trim()){markField(`ref${i}Name`,false);ok=false;}else markField(`ref${i}Name`,true);if(!ph||!isValidBrazilPhone(ph.value)||looksLikeFakeNumber(ph.value)){markField(`ref${i}Phone`,false);ok=false;}else markField(`ref${i}Phone`,true);});
- return ok;}
-
-function openRegister(){openModal(`<h2>Crie sua conta</h2><p>Tenha acesso à busca de profissionais, solicitações e avaliações.</p><div class="form-group"><label>Nome completo</label><input id="clientName" placeholder="Seu nome completo"></div><div class="form-group"><label>E-mail</label><input id="clientEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="clientPass" type="password" autocomplete="new-password" placeholder="Crie uma senha"></div><div id="registerError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="createClientAccount()">Criar minha conta</button><div class="modal-divider">ou</div><button class="btn btn-outline" style="width:100%" onclick="openProfessionalRegister()">Crie uma conta profissional</button>`) }
-
-function openOtpVerification(email,kind){
-    const title=kind==="professional"?"Confirme seu e-mail profissional":"Confirme seu e-mail";
-    openModal(`<div class="success-icon">✉</div><h2>${title}</h2><p>Enviamos um <b>código de 8 dígitos</b> para <b>${escapeHtml(email)}</b>. Digite o código recebido no Gmail.</p><div class="form-group"><label>Código de confirmação</label><input id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="00000000"></div><div id="otpError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="verifySignupOtp('${kind}')">Confirmar código</button><button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="resendSignupOtp('${escapeHtml(email)}')">Enviar outro código</button>`);
-}
-
-async function createClientAccount(){
-    if(!requireBackend())return;
-    const name=document.getElementById("clientName").value.trim(),email=document.getElementById("clientEmail").value.trim(),pass=document.getElementById("clientPass").value;
-    const e=document.getElementById("registerError");
-    if(!name||!email||pass.length<6){e.textContent="Preencha os campos e use uma senha com pelo menos 6 caracteres.";e.classList.remove("hidden");return;}
-    pendingClientSignup={name,email,pass};
-    const {data,error}=await sb.auth.signUp({email,password:pass,options:{data:{nome:name,tipo:"cliente"}}});
-    if(error){pendingClientSignup=null;e.textContent=error.message;e.classList.remove("hidden");return;}
-    if(data.user&&data.session){await ensureUserProfile(data.user,name,"cliente");closeModal();enterClient(name);return;}
-    openOtpVerification(email,"client");
-}
-
-function openProfessionalRegister(){openModal(`<h2>Crie uma conta profissional</h2><p>O cadastro passa por análise antes de aparecer para os clientes.</p><div class="form-group"><label>Nome completo</label><input id="proName" placeholder="Seu nome completo" autocomplete="name"><small class="field-help">Somente letras e espaços.</small></div><div class="form-group"><label>Telefone</label><input id="proPhone" inputmode="tel" maxlength="18" placeholder="+55 00 0 0000-0000"><small class="field-help">Formato obrigatório: +55 00 0 0000-0000</small></div><div class="form-group"><label>E-mail</label><input id="proEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="proPass" type="password" autocomplete="new-password" placeholder="Crie uma senha"></div><div class="form-group"><label>Data de nascimento</label><input id="proBirth" type="date"></div><div class="form-group"><label>CEP</label><input id="proCep" inputmode="numeric" maxlength="9" placeholder="00000-000"><small id="cepStatus" class="field-help">Digite o CEP para preencher o endereço automaticamente.</small></div><div class="form-group"><label>Endereço</label><input id="proAddress" readonly placeholder="Preenchido automaticamente pelo CEP"></div><div class="form-group"><label>Número</label><input id="proNumber" inputmode="numeric" maxlength="6" placeholder="Ex.: 120"><small class="field-help">Somente números.</small></div><div class="form-group"><label>Bairro</label><input id="proDistrict" readonly placeholder="Preenchido automaticamente pelo CEP"></div><div class="form-group"><label>Cidade</label><input id="proCity" readonly placeholder="Preenchida automaticamente pelo CEP"></div><div class="form-group"><label>Estado</label><input id="proState" maxlength="2" readonly placeholder="UF"></div><div class="form-group"><label>Profissão</label><input id="proJob" placeholder="Ex.: Eletricista"><small class="field-help">Somente letras e espaços.</small></div><div class="form-group"><label>Tempo de experiência (anos)</label><input id="proExperience" type="number" inputmode="numeric" min="0" max="80" step="1" placeholder="Ex.: 5"><small class="field-help">Somente números.</small></div><div class="form-group"><label>Descrição do serviço</label><textarea id="proDescription" rows="3" placeholder="Conte sobre seu trabalho e experiência"></textarea></div>${[1,2,3,4,5].map(i=>`<div class="reference-card"><b>Cliente anterior ${i}</b><div class="form-group"><label>Nome</label><input id="ref${i}Name" placeholder="Nome do cliente"></div><div class="form-group"><label>Telefone</label><input id="ref${i}Phone" inputmode="tel" maxlength="18" placeholder="+55 00 0 0000-0000"><small class="field-help">Formato obrigatório: +55 00 0 0000-0000</small></div></div>`).join("")}<div class="notice">A ResolveJá entrará em contato com as 5 referências. O cadastro só será aprovado após análise da equipe.</div><div id="proRegisterError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="submitProfessionalApplication()">Enviar para análise</button>`);wireProfessionalFieldRules();}
-
-async function submitProfessionalApplication(){
-    if(!requireBackend())return;
-    const get=id=>document.getElementById(id)?.value.trim()||"";
-    const values={name:get("proName"),phone:get("proPhone"),email:get("proEmail"),pass:document.getElementById("proPass")?.value||"",birth:get("proBirth"),cep:get("proCep"),address:get("proAddress"),number:get("proNumber"),district:get("proDistrict"),city:get("proCity"),state:get("proState").toUpperCase(),job:get("proJob"),experience:get("proExperience")+" anos",description:get("proDescription")};
-    const e=document.getElementById("proRegisterError");
-    if(!validateProfessionalFields(values)||values.pass.length<6){e.textContent="Corrija os campos destacados em vermelho. O telefone deve seguir +55 00 0 0000-0000 e os campos de texto não aceitam números.";e.classList.remove("hidden");return;}
-    const refs=[];for(let i=1;i<=5;i++){const name=get(`ref${i}Name`),phone=get(`ref${i}Phone`);if(!name||!phone){e.textContent=`Preencha o nome e telefone da referência ${i}.`;e.classList.remove("hidden");return;}refs.push({nome:name,telefone:phone,ordem:i,contato_verificado:false});}
-    pendingProfessionalSignup={values,refs};
-    const {data,error}=await sb.auth.signUp({email:values.email,password:values.pass,options:{data:{nome:values.name,tipo:"profissional"}}});
-    if(error){pendingProfessionalSignup=null;e.textContent=error.message;e.classList.remove("hidden");return;}
-    if(data.session){await finishProfessionalSignup(data.user);return;}
-    openOtpVerification(values.email,"professional");
-}
-
-async function verifySignupOtp(kind){
-    const code=document.getElementById("otpCode")?.value.trim();
-    const e=document.getElementById("otpError");
-    const pending=kind==="professional"?pendingProfessionalSignup:pendingClientSignup;
-    if(!pending){e.textContent="Esta confirmação expirou. Recomece o cadastro.";e.classList.remove("hidden");return;}
-    const email=kind==="professional"?pending.values.email:pending.email;
-    if(!/^\d{8}$/.test(code)){e.textContent="Digite o código de 8 dígitos recebido no Gmail.";e.classList.remove("hidden");return;}
-    const {data,error}=await sb.auth.verifyOtp({email,token:code,type:kind==="professional"||kind==="client"?"signup":"email"});
-    if(error){e.textContent="Código inválido ou expirado. Solicite outro código e tente novamente.";e.classList.remove("hidden");return;}
-    if(kind==="professional") await finishProfessionalSignup(data.user);
-    else {await ensureUserProfile(data.user,pending.name,"cliente");pendingClientSignup=null;closeModal();enterClient(pending.name);}
-}
-
-async function resendSignupOtp(email){
-    const {error}=await sb.auth.resend({type:"signup",email});
-    const e=document.getElementById("otpError");
-    if(error){e.textContent=error.message;e.classList.remove("hidden");return;}
-    e.textContent="Novo código enviado. Verifique o Gmail.";e.classList.remove("hidden");
-}
-
-async function finishProfessionalSignup(user){
-    const pending=pendingProfessionalSignup;
-    if(!pending)return;
-    const v=pending.values;
-    const profile=await ensureUserProfile(user,v.name,"profissional",v.phone,v.city,v.state);
-    if(profile.error){const e=document.getElementById("otpError")||document.getElementById("proRegisterError");e.textContent=profile.error.message;e.classList.remove("hidden");return;}
-    const {data:pro,error:proError}=await sb.from("profissionais").insert({usuario_id:user.id,nome:v.name,telefone:v.phone,email:v.email,data_nascimento:v.birth,cidade:v.city,estado:v.state,cep:v.cep,profissao:v.job,experiencia:v.experience,descricao:v.description,endereco:v.address,numero:v.number,bairro:v.district,status:"pendente",verificado:false}).select().single();
-    if(proError){const e=document.getElementById("otpError")||document.getElementById("proRegisterError");e.textContent=proError.message;e.classList.remove("hidden");return;}
-    const refs=pending.refs.map(r=>({...r,profissional_id:pro.id}));
-    const {error:refError}=await sb.from("referencias").insert(refs);
-    if(refError){const e=document.getElementById("otpError")||document.getElementById("proRegisterError");e.textContent=refError.message;e.classList.remove("hidden");return;}
-    pendingProfessionalSignup=null;
-    closeModal();openModal(`<div class="success-icon">✓</div><h2>Cadastro enviado!</h2><p>Seu cadastro foi enviado para análise. A equipe verificará suas 5 referências antes da aprovação.</p><div class="notice">Você só aparecerá como profissional após a aprovação.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);
-}
-async function ensureUserProfile(user,name,tipo,telefone="",cidade="",estado=""){
-    const {data,error}=await sb.from("usuarios").upsert({id:user.id,nome:name,email:user.email||"",telefone,cidade,estado,tipo,status:"ativo"},{onConflict:"id"}).select().single();
-    return {data,error};
-}
-function login(){openModal(`<div class="login-modal-head"><div class="success-icon">✉</div><h2>Entrar na ResolveJá</h2><p>Digite seu Gmail e nós enviaremos um código de acesso.</p></div><div class="form-group"><label>E-mail</label><input id="loginUser" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></div><div id="loginError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="sendLoginCode()">Enviar código</button><div class="modal-divider">Ainda não tem conta?</div><button class="btn btn-outline" style="width:100%" onclick="openRegister()">Crie sua conta</button>`)}
-async function sendLoginCode(){
-    if(!requireBackend())return;
-    const email=document.getElementById("loginUser")?.value.trim();
-    const e=document.getElementById("loginError");
-    if(!email){e.textContent="Digite seu e-mail.";e.classList.remove("hidden");return;}
-    const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false}});
-    if(error){e.textContent="Não foi possível enviar o código. Verifique se este e-mail já possui uma conta.";e.classList.remove("hidden");return;}
-    openLoginOtp(email);
-}
-function openLoginOtp(email){
-    openModal(`<div class="success-icon">✉</div><h2>Código enviado</h2><p>Enviamos um <b>código de 8 dígitos</b> para <b>${escapeHtml(email)}</b>. Verifique o Gmail.</p><div class="form-group"><label>Código</label><input id="loginOtpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="00000000"></div><div id="loginOtpError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="verifyLoginCode('${escapeHtml(email)}')">Entrar</button><button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="sendLoginCodeAgain('${escapeHtml(email)}')">Enviar outro código</button>`);
-}
-async function verifyLoginCode(email){
-    const code=document.getElementById("loginOtpCode")?.value.trim();
-    const e=document.getElementById("loginOtpError");
-    if(!/^\d{8}$/.test(code)){e.textContent="Digite os 8 dígitos do código.";e.classList.remove("hidden");return;}
-    const {data,error}=await sb.auth.verifyOtp({email,token:code,type:"email"});
-    if(error){e.textContent="Código inválido ou expirado.";e.classList.remove("hidden");return;}
-    await routeAuthenticatedUser(data.user);
-}
-async function sendLoginCodeAgain(email){
-    const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false}});
-    const e=document.getElementById("loginOtpError");
-    if(error){e.textContent=error.message;e.classList.remove("hidden");return;}
-    e.textContent="Novo código enviado. Verifique o Gmail.";e.classList.remove("hidden");
-}
-async function routeAuthenticatedUser(user){
-    const {data:admin}=await sb.from("administradores").select("cargo,ativo").eq("usuario_id",user.id).eq("ativo",true).maybeSingle();
-    closeModal();
-    if(admin){const isMaster=String(admin.cargo||"").toLowerCase()==="master";window.resolveJaIsAdmin=true;enterAdmin(isMaster);return;}
-    const {data:account}=await sb.from("usuarios").select("status,punicao_expira_em,motivo_punicao").eq("id",user.id).maybeSingle();
-    if(account?.status==="punido") {
-        const expires=account.punicao_expira_em?new Date(account.punicao_expira_em):null;
-        if(!expires || expires>new Date()){
-            await sb.auth.signOut();
-            openModal(`<h2>Conta temporariamente bloqueada</h2><div class="notice">${escapeHtml(account.motivo_punicao||"Sua conta foi punida pela equipe da ResolveJá.")}${expires?`<br>Até: ${expires.toLocaleString("pt-BR")}`:"<br>Bloqueio permanente."}</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);
-            return;
-        }
-    }
-    window.resolveJaIsAdmin=false;
-    const {data:professional}=await sb.from("profissionais").select("id,nome,status,verificado,profissao").eq("usuario_id",user.id).maybeSingle();
-    if(professional){
-        window.resolveJaProfessional=professional;
-        enterProfessional(professional);
-        return;
-    }
-    window.resolveJaProfessional=null;
-    const {data:profile}=await sb.from("usuarios").select("nome,tipo").eq("id",user.id).maybeSingle();
-    enterClient(profile?.nome||user.user_metadata?.nome||user.email?.split("@")[0]||"Cliente");
-}
-function enterClient(name){
-    window.resolveJaProfessional=null;
-    document.getElementById("publicNav").classList.add("hidden");
-    document.getElementById("userNav").classList.remove("hidden");
-
-    document.getElementById("welcome").textContent=
-        "Olá, "+String(name).split(" ")[0]+"!";
-
-    document.querySelectorAll(".auth-only")
-        .forEach(x=>x.style.display="");
-
-    document.querySelectorAll(".master-only")
-        .forEach(x=>x.style.display="none");
-
-    const clientLinks=document.querySelectorAll(".client-only");
-    clientLinks.forEach(x=>x.style.display="");
-
-    showPage("clientHome");
-    renderClientCategories();
-    loadClientHome();
-}
-
-async function loadClientHome(){
-    const welcome=document.getElementById("clientWelcome");
-    const userInfo=document.getElementById("clientUserInfo");
-    if(!sb||!welcome)return;
-    const {data:{user}}=await sb.auth.getUser();
-    if(!user)return;
-    const {data:profile}=await sb.from("usuarios").select("nome,cidade,estado,tipo").eq("id",user.id).maybeSingle();
-    const name=profile?.nome||user.user_metadata?.nome||user.email?.split("@")[0]||"Cliente";
-    welcome.textContent="Olá, "+name.split(" ")[0]+" 👋";
-    if(userInfo)userInfo.innerHTML=`<b>${escapeHtml(name)}</b><span>${escapeHtml(user.email||"")}</span>${profile?.cidade?`<span>📍 ${escapeHtml(profile.cidade)}${profile.estado?", "+escapeHtml(profile.estado):""}</span>`:""}`;
-}
-
-function openClientSettings(){
-    showPage("clientSettings");
-    loadClientSettings();
-}
-
-async function loadClientSettings(){
-    if(!sb)return;
-    const {data:{user}}=await sb.auth.getUser();
-    if(!user)return;
-    const {data:p}=await sb.from("usuarios").select("nome,telefone,cidade,estado").eq("id",user.id).maybeSingle();
-    document.getElementById("settingsName").value=p?.nome||user.user_metadata?.nome||"";
-    document.getElementById("settingsPhone").value=p?.telefone||"";
-    document.getElementById("settingsCity").value=p?.cidade||"";
-    document.getElementById("settingsState").value=p?.estado||"";
-    document.getElementById("settingsEmail").value=user.email||"";
-}
-
-async function saveClientSettings(){
-    if(!sb)return;
-    const {data:{user}}=await sb.auth.getUser();
-    if(!user)return;
-    const name=document.getElementById("settingsName").value.trim();
-    const city=document.getElementById("settingsCity").value.trim();
-    const state=document.getElementById("settingsState").value.trim().toUpperCase();
-    if(!name){showNotice("settingsNotice","Informe seu nome.");return;}
-    if(city && (!/[A-Za-zÀ-ÿ]/.test(city)||/^[0-9\s-]+$/.test(city))){showNotice("settingsNotice","Informe uma cidade válida.");return;}
-    const {error}=await sb.from("usuarios").upsert({id:user.id,nome:name,cidade:city,estado:state,tipo:"cliente"},{onConflict:"id"});
-    if(error){showNotice("settingsNotice",error.message);return;}
-    showNotice("settingsNotice","Dados salvos com sucesso.",true);
-    document.getElementById("welcome").textContent="Olá, "+name.split(" ")[0]+"!";
-    loadClientHome();
-}
-
-function showNotice(id,text,success=false){
-    const el=document.getElementById(id);
-    if(!el)return;
-    el.textContent=text;
-    el.classList.remove("hidden");
-    el.style.background=success?"#e8f8ed":"";
-    el.style.color=success?"#176b36":"";
-}
-
-function enterAdmin(master){
-    document.getElementById("publicNav").classList.add("hidden");
-    document.getElementById("userNav").classList.add("hidden");
-    document.querySelectorAll(".client-only").forEach(x=>x.style.display="none");
-    document.querySelectorAll(".master-only").forEach(x=>x.style.display=master?"block":"none");
-    window.resolveJaIsMaster=master;
-    showPage("admin");
-    adminPage("dashboard",document.querySelector(".side-btn"));
-}
-function resetLoggedOut(){
-    window.resolveJaProfessional=null;
-    document.getElementById("professionalOnly")?.classList.add("hidden");
-    document.getElementById("userNav")?.classList.add("hidden");
-    document.getElementById("publicNav")?.classList.remove("hidden");
-    document.querySelectorAll(".auth-only,.client-only").forEach(x=>x.style.display="none");
-    document.querySelectorAll(".master-only").forEach(x=>x.style.display="none");
-    window.resolveJaIsMaster=false;
-    showPage("home");
-}
-async function logout(){
-    if(sb){const {error}=await sb.auth.signOut(); if(error){console.error(error);}}
-    resetLoggedOut();
-}
-async function requestService(professionalId){
-    if(!sb){requireBackend();return;}
-    const {data:{user}}=await sb.auth.getUser();
-    if(!user){closeModal();login();return;}
-    const {data:pro}=await sb.from("profissionais").select("id,usuario_id,nome,status,verificado").eq("id",professionalId).single();
-    if(!pro){openModal(`<h2>Profissional não encontrado</h2><div class="notice">Tente novamente.</div>`);return;}
-    if(pro.usuario_id===user.id){
-        openModal(`<h2>Você não pode solicitar este serviço</h2><div class="notice">Um profissional não pode contratar ou solicitar um serviço dele mesmo.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);
-        return;
-    }
-    const description=prompt("Descreva o serviço que você precisa:");
-    if(description===null)return;
-    if(!description.trim()){openModal(`<h2>Descreva o serviço</h2><div class="notice">Informe o que você precisa antes de enviar.</div>`);return;}
-    const {data:service,error}=await sb.from("servicos").insert({cliente_id:user.id,profissional_id:professionalId,descricao:description.trim(),status:"solicitado"}).select("id").single();
-    if(error){openModal(`<h2>Não foi possível solicitar</h2><div class="notice">${escapeHtml(error.message)}</div>`);return;}
-    await ensureConversation(user.id,professionalId);
-    openModal(`<div class="success-icon">✓</div><h2>Solicitação enviada!</h2><p>O profissional recebeu sua solicitação. Agora vocês podem conversar pela aba de Serviços.</p><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>`);
-}
-
-async function ensureConversation(clienteId,profissionalId){
-    const {data,error}=await sb.from("conversas").upsert({cliente_id:clienteId,profissional_id:profissionalId},{onConflict:"cliente_id,profissional_id"}).select("id").single();
-    return {data,error};
-}
-
-async function openChat(professionalId,name){
-    if(!sb){requireBackend();return;}
-    const {data:{user}}=await sb.auth.getUser();
-    if(!user){login();return;}
-    const {data:pro}=await sb.from("profissionais").select("id,usuario_id,nome,status,verificado").eq("id",professionalId).single();
-    if(!pro)return;
-    if(pro.usuario_id===user.id){
-        openModal(`<h2>Chat indisponível</h2><div class="notice">Você não pode iniciar uma conversa com seu próprio perfil profissional.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);
-        return;
-    }
-    const {data:conversation,error}=await ensureConversation(user.id,professionalId);
-    if(error||!conversation){openModal(`<h2>Não foi possível abrir o chat</h2><div class="notice">${escapeHtml(error?.message||"Tente novamente.")}</div>`);return;}
-    openModal(`<h2>Chat com ${escapeHtml(name||pro.nome)}</h2><div id="chatMessages" class="chat-messages"><p class="chat-empty">Carregando mensagens...</p></div><div id="chatSecurityNotice" class="notice">🛡️ Não envie telefone, WhatsApp, @usuários ou contatos externos. Tentativas são bloqueadas e encaminhadas para denúncias.</div><div class="chat-compose"><textarea id="chatInput" rows="2" maxlength="1000" placeholder="Digite sua mensagem..."></textarea><button class="btn btn-primary" onclick="sendChatMessage('${conversation.id}')">Enviar</button></div>`);
-    await loadChatMessages(conversation.id);
-}
-async function loadChatMessages(conversationId){
-    const box=document.getElementById("chatMessages");
-    if(!box)return;
-    const {data,error}=await sb.from("mensagens").select("id,remetente_id,conteudo,criado_em").eq("conversa_id",conversationId).order("criado_em",{ascending:true});
-    if(error){box.innerHTML=`<div class="notice">Não foi possível carregar as mensagens.</div>`;return;}
-    const {data:{user}}=await sb.auth.getUser();
-    if(!data?.length){box.innerHTML=`<p class="chat-empty">Nenhuma mensagem ainda. Envie a primeira.</p>`;return;}
-    box.innerHTML=data.map(m=>`<div class="chat-bubble ${m.remetente_id===user.id?"mine":"theirs"}"><p>${escapeHtml(m.conteudo)}</p><small>${new Date(m.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</small></div>`).join("");
-    box.scrollTop=box.scrollHeight;
-}
-async function sendChatMessage(conversationId){
-    const input=document.getElementById("chatInput");
-    const text=input?.value.trim();
-    if(!text)return;
-    const result=await sendSecureMessage(conversationId,text);
-    if(result.blocked||result.error){showNoticeInChat(result.error.message);return;}
-    input.value="";
-    await loadChatMessages(conversationId);
-}
-function showNoticeInChat(text){const box=document.getElementById("chatSecurityNotice")||document.getElementById("chatMessages");if(box){box.textContent=text;box.classList.remove("hidden");}}
-
-async function enterProfessional(pro){
-    document.getElementById("publicNav").classList.add("hidden");
-    document.getElementById("userNav").classList.add("hidden");
-    document.querySelectorAll(".client-only").forEach(x=>x.style.display="none");
-    document.querySelectorAll(".master-only").forEach(x=>x.style.display="none");
-    document.getElementById("professionalOnly")?.classList.remove("hidden");
-    document.getElementById("professionalWelcome").textContent=`Olá, ${String(pro.nome||"Profissional").split(" ")[0]} 👋`;
-    showPage("professionalHome");
-    loadProfessionalServices();
-}
-
-async function loadProfessionalServices(){
-    if(!sb)return;
-    const {data:{user}}=await sb.auth.getUser();
-    if(!user)return;
-    const {data:pro}=await sb.from("profissionais").select("id,nome,profissao,status,verificado").eq("usuario_id",user.id).maybeSingle();
-    const box=document.getElementById("professionalServiceList");
-    if(!box||!pro)return;
-    const {data:convs,error}=await sb.from("conversas").select("id,cliente_id,criado_em,atualizado_em").eq("profissional_id",pro.id).order("atualizado_em",{ascending:false});
-    if(error){box.innerHTML=`<div class="notice">Não foi possível carregar seus chats.</div>`;return;}
-    const count=document.getElementById("professionalChatCount"); if(count)count.textContent=String(convs?.length||0);
-    if(!convs?.length){box.innerHTML=`<div class="chat-empty">Nenhum cliente entrou em contato ainda.</div>`;return;}
-    const ids=[...new Set(convs.map(c=>c.cliente_id))];
-    const {data:users}=await sb.from("usuarios").select("id,nome").in("id",ids);
-    const names=new Map((users||[]).map(u=>[u.id,u.nome]));
-    box.innerHTML=convs.map(c=>{const n=names.get(c.cliente_id)||"Cliente";const initials=n.split(/\s+/).slice(0,2).map(x=>x[0]).join("").toUpperCase();return `<button class="professional-chat-row" onclick="openProfessionalChat('${c.id}','${escapeHtml(n)}')"><span class="avatar">${escapeHtml(initials)}</span><span><b>${escapeHtml(n)}</b><small>Cliente • ${new Date(c.atualizado_em||c.criado_em).toLocaleDateString("pt-BR")}</small></span><strong>›</strong></button>`;}).join("");
-}
-async function openProfessionalChat(conversationId,name){
-    const {data:{user}}=await sb.auth.getUser();
-    if(!user)return;
-    document.getElementById("professionalChatPlaceholder")?.classList.add("hidden");
-    const active=document.getElementById("professionalChatActive");active?.classList.remove("hidden");
-    const nameEl=document.getElementById("professionalChatClientName");if(nameEl)nameEl.textContent=name;
-    const avatar=document.getElementById("professionalChatClientAvatar");if(avatar)avatar.textContent=name.split(/\s+/).slice(0,2).map(x=>x[0]).join("").toUpperCase();
-    const input=document.getElementById("professionalChatInput");if(input)input.dataset.conversationId=conversationId;
-    await loadProfessionalChatMessages(conversationId);
-}
-async function loadProfessionalChatMessages(conversationId){
-    const box=document.getElementById("professionalChatMessages");if(!box)return;
-    const {data,error}=await sb.from("mensagens").select("id,remetente_id,conteudo,criado_em").eq("conversa_id",conversationId).order("criado_em",{ascending:true});
-    const {data:{user}}=await sb.auth.getUser();
-    if(error){box.innerHTML=`<div class="notice">Não foi possível carregar as mensagens.</div>`;return;}
-    if(!data?.length){box.innerHTML=`<p class="chat-empty">Nenhuma mensagem ainda.</p>`;return;}
-    box.innerHTML=data.map(m=>`<div class="chat-bubble ${m.remetente_id===user.id?"mine":"theirs"}"><p>${escapeHtml(m.conteudo)}</p><small>${new Date(m.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</small></div>`).join("");box.scrollTop=box.scrollHeight;
-}
-async function sendProfessionalMessage(){
-    const input=document.getElementById("professionalChatInput");const conversationId=input?.dataset.conversationId;const text=input?.value.trim();if(!conversationId||!text)return;
-    const result=await sendSecureMessage(conversationId,text);
-    const notice=document.getElementById("professionalChatNotice");
-    if(result.blocked||result.error){if(notice){notice.textContent=result.error.message;notice.classList.remove("hidden");}return;}
-    if(notice)notice.classList.add("hidden");input.value="";await loadProfessionalChatMessages(conversationId);await loadProfessionalServices();
-}
-
-async function loadProfessionalApplication(id){
-    const {data:pro,error}=await sb.from("profissionais").select("id,nome,telefone,email,data_nascimento,cidade,estado,cep,profissao,experiencia,descricao,status,verificado,criado_em").eq("id",id).single();
-    if(error||!pro)return null;
-    const {data:refs}=await sb.from("referencias").select("id,nome,telefone,ordem,contato_verificado,observacao").eq("profissional_id",id).order("ordem");
-    return {pro,refs:refs||[]};
-}
-async function analyzeApplication(id){
-    const item=await loadProfessionalApplication(id);
-    if(!item){openModal(`<h2>Não foi possível carregar</h2><div class="notice">Verifique as permissões do administrador no Supabase.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Fechar</button>`);return;}
-    const p=item.pro;
-    const options=categories.map(c=>`<option value="${escapeHtml(c[1])}" ${String(p.profissao||"")===c[1]?"selected":""}>${escapeHtml(c[1])}</option>`).join("");
-    const refs=item.refs.map(r=>`<div class="reference-admin"><b>${r.ordem}. ${escapeHtml(r.nome)}</b><span>${escapeHtml(r.telefone)}</span><span>${r.contato_verificado?"✓ Contato verificado":"○ Ainda não verificado"}</span>${r.observacao?`<small>${escapeHtml(r.observacao)}</small>`:""}</div>`).join("");
-    openModal(`<h2>Análise do profissional</h2><div class="analysis-grid"><div><b>Nome</b><span>${escapeHtml(p.nome)}</span></div><div><b>E-mail</b><span>${escapeHtml(p.email||"")}</span></div><div><b>Telefone</b><span>${escapeHtml(p.telefone||"")}</span></div><div><b>Cidade</b><span>${escapeHtml(p.cidade||"")}${p.estado?", "+escapeHtml(p.estado):""}</span></div><div><b>CEP</b><span>${escapeHtml(p.cep||"Não informado")}</span></div><div><b>Nascimento</b><span>${escapeHtml(p.data_nascimento||"Não informado")}</span></div><div><b>Experiência</b><span>${escapeHtml(p.experiencia||"Não informado")}</span></div></div><div class="form-group"><label>Categoria do profissional</label><select id="analysisCategory">${options}</select></div><div class="form-group"><label>Descrição</label><textarea id="analysisDescription" rows="4">${escapeHtml(p.descricao||"")}</textarea></div><div class="panel" style="margin-top:10px"><h3>5 referências</h3>${refs||"<p>Nenhuma referência encontrada.</p>"}</div><div id="analysisError" class="notice hidden"></div><div class="analysis-actions"><button class="btn btn-danger" onclick="reviewProfessional('${id}','rejeitado')">Rejeitar</button><button class="btn btn-primary" onclick="reviewProfessional('${id}','aprovado')">Aprovar profissional</button></div>`);
-}
-async function reviewProfessional(id,status){
-    if(!window.resolveJaIsMaster && !window.resolveJaIsAdmin){openModal(`<h2>Acesso negado</h2><p>Você não tem permissão para analisar profissionais.</p>`);return;}
-    const category=document.getElementById("analysisCategory")?.value;
-    const description=document.getElementById("analysisDescription")?.value.trim();
-    const e=document.getElementById("analysisError");
-    if(!category){e.textContent="Escolha uma categoria.";e.classList.remove("hidden");return;}
-    const {error}=await sb.from("profissionais").update({profissao:category,descricao:description,status,verificado:status==="aprovado",analisado_em:new Date().toISOString()}).eq("id",id);
-    if(error){e.textContent="Não foi possível salvar a análise: "+error.message;e.classList.remove("hidden");return;}
-    closeModal();adminPage("analyses",document.querySelectorAll(".side-btn")[1]);
-}
-async function adminPage(page,el){
-    document.querySelectorAll(".side-btn").forEach(x=>x.classList.remove("active"));if(el)el.classList.add("active");
-    const c=document.getElementById("adminContent");
-    if(page==="dashboard")c.innerHTML=`<h2>Visão geral</h2><p style="color:#718078">Painel administrativo da ResolveJá.</p><div class="cards"><div class="metric"><small>Banco</small><strong>Online</strong></div><div class="metric"><small>RLS</small><strong>Ativo</strong></div><div class="metric"><small>Verificação</small><strong>5 referências</strong></div><div class="metric"><small>Avaliações</small><strong>1–10</strong></div></div>`;
-    else if(page==="analyses"){
-        c.innerHTML=`<h2>Análises</h2><p style="color:#718078">Revise os cadastros enviados pelos profissionais.</p><div id="analysisList" class="panel"><p>Carregando...</p></div>`;
-        const box=document.getElementById("analysisList");
-        const {data,error}=await sb.from("profissionais").select("id,nome,email,telefone,cidade,estado,profissao,experiencia,status,verificado,criado_em").eq("status","pendente").order("criado_em",{ascending:false});
-        if(error){box.innerHTML=`<div class="notice">Não foi possível carregar a fila. Confira as políticas RLS para administradores.</div>`;return;}
-        if(!data?.length){box.innerHTML=`<h3>Nenhuma candidatura pendente</h3><p>Quando um profissional enviar o cadastro, ele aparecerá aqui.</p>`;return;}
-        box.innerHTML=data.map(p=>`<div class="admin-application"><div><b>${escapeHtml(p.nome)}</b><span>${escapeHtml(p.profissao||"Sem categoria")} • ${escapeHtml(p.cidade||"")}${p.estado?", "+escapeHtml(p.estado):""}</span><small>${escapeHtml(p.email||"")} • ${escapeHtml(p.telefone||"")}</small></div><button class="btn btn-primary" onclick="analyzeApplication('${p.id}')">Analisar</button></div>`).join("");
-    }
-    else if(page==="professionals"){
-        c.innerHTML=`<h2>Profissionais</h2><div id="adminPros" class="panel"><p>Carregando...</p></div>`;
-        const box=document.getElementById("adminPros");
-        const {data,error}=await sb.from("profissionais").select("nome,profissao,cidade,estado,status,verificado").order("criado_em",{ascending:false});
-        if(error){box.innerHTML=`<div class="notice">Não foi possível carregar profissionais.</div>`;return;}
-        box.innerHTML=(data||[]).map(p=>`<div class="admin-application"><div><b>${escapeHtml(p.nome)}</b><span>${escapeHtml(p.profissao||"")} • ${escapeHtml(p.cidade||"")}${p.estado?", "+escapeHtml(p.estado):""}</span></div><span class="status">${escapeHtml(p.status||"")}</span></div>`).join("")||"<p>Nenhum profissional cadastrado.</p>";
-    }
-    else if(page==="users"){
-        c.innerHTML=`<h2>Usuários</h2><p style="color:#718078">Todos os usuários cadastrados aparecem aqui. Você pode ver o estado da conta e aplicar punições.</p><div id="adminUserResults" class="panel"><p>Carregando usuários...</p></div>`;searchAdminUsers();
-    }
-    else if(page==="reports"){
-        c.innerHTML=`<h2>Denúncias</h2><p style="color:#718078">Tentativas de compartilhamento de contatos e outras ocorrências.</p><div id="reportsList" class="panel"><p>Carregando...</p></div>`;
-        loadAdminReports();
-    }
-    else if(page==="logs")c.innerHTML=`<h2>Registros</h2><div class="panel"><p>Auditoria administrativa protegida por RLS.</p></div>`;
-    else if(page==="admins"){
-        c.innerHTML=`<h2>Administradores</h2><p style="color:#718078">A Conta Mestre pode cadastrar novos administradores.</p><div class="panel"><div class="form-group"><label>Nome</label><input id="newAdminName" placeholder="Nome do administrador"></div><div class="form-group"><label>E-mail</label><input id="newAdminEmail" type="email" placeholder="admin@gmail.com"></div><div class="form-group"><label>Senha</label><input id="newAdminPass" type="password" placeholder="Senha do administrador"></div><div id="newAdminError" class="notice hidden"></div><button class="btn btn-primary" onclick="createAdminAccount()">Criar conta de ADM</button></div>`;
-    }
-    else c.innerHTML=`<h2>Configurações</h2><div class="panel"><p>Configurações da plataforma e da conta administrativa.</p></div>`;
-}
-async function searchAdminUsers(){
-    if(!window.resolveJaIsAdmin)return;
-    const box=document.getElementById("adminUserResults");if(!box)return;
-    const {data,error}=await sb.from("usuarios").select("id,nome,email,telefone,cidade,estado,tipo,status,punicao_expira_em,motivo_punicao,criado_em").order("criado_em",{ascending:false});
-    if(error){box.innerHTML=`<div class="notice">Não foi possível carregar os usuários. ${escapeHtml(error.message)}</div>`;return;}
-    if(!data?.length){box.innerHTML=`<p>Nenhum usuário cadastrado.</p>`;return;}
-    box.innerHTML=data.map(u=>{const blocked=u.status&&u.status!=="ativo";return `<div class="admin-user-row"><div><b>${escapeHtml(u.nome||"Sem nome")}</b><span>${escapeHtml(u.tipo||"cliente")} • ${escapeHtml(u.cidade||"")}${u.estado?", "+escapeHtml(u.estado):""}</span><small>${escapeHtml(u.email||"")} • ${blocked?"⛔ "+escapeHtml(u.motivo_punicao||"Conta punida"):"✅ Conta ativa"}</small></div><div class="admin-user-actions"><button class="btn btn-danger" onclick="punishUser('${u.id}')">Punir</button><button class="btn btn-outline" onclick="clearUserPunishment('${u.id}')">Liberar</button></div></div>`;}).join("");
-}
-async function punishUser(userId){
-    if(!window.resolveJaIsAdmin)return;
-    openModal(`<h2>Punir usuário</h2><p>A conta ficará bloqueada dentro da ResolveJá.</p><div class="form-group"><label>Duração</label><select id="punishDuration"><option value="5">5 minutos</option><option value="60">1 hora</option><option value="1440">24 horas</option><option value="10080">7 dias</option><option value="0">Permanente</option></select></div><div class="form-group"><label>Motivo</label><input id="punishReason" placeholder="Motivo da punição"></div><div id="punishError" class="notice hidden"></div><button class="btn btn-danger" style="width:100%" onclick="applyPunishment('${userId}')">Aplicar punição</button>`);
-}
-async function applyPunishment(userId){
-    if(!window.resolveJaIsAdmin)return;
-    const duration=Number(document.getElementById("punishDuration")?.value||0);const reason=document.getElementById("punishReason")?.value.trim()||"Violação das regras da ResolveJá";const e=document.getElementById("punishError");
-    const {data,error}=await sb.rpc("punir_usuario_resolveja",{p_usuario_id:userId,p_minutos:duration,p_motivo:reason});
-    if(error){e.textContent=error.message;e.classList.remove("hidden");return;}closeModal();adminPage("users",document.querySelectorAll(".side-btn")[3]);
-}
-async function clearUserPunishment(userId){
-    if(!window.resolveJaIsAdmin)return;
-    const {error}=await sb.rpc("liberar_usuario_resolveja",{p_usuario_id:userId});
-    if(error){openModal(`<h2>Não foi possível liberar</h2><div class="notice">${escapeHtml(error.message)}</div>`);return;}
-    searchAdminUsers();
-}
-async function loadAdminReports(){
-    const box=document.getElementById("reportsList");if(!box)return;
-    const {data,error}=await sb.from("denuncias_seguranca").select("id,denunciante_id,usuario_denunciado_id,tipo,descricao,status,criado_em").order("criado_em",{ascending:false}).limit(100);
-    if(error){box.innerHTML=`<div class="notice">Não foi possível carregar as denúncias. ${escapeHtml(error.message)}</div>`;return;}
-    if(!data?.length){box.innerHTML=`<h3>Nenhuma denúncia</h3><p>Não há ocorrências registradas.</p>`;return;}
-    box.innerHTML=data.map(r=>`<div class="report-row"><div><b>${escapeHtml(r.tipo)}</b><span>${new Date(r.criado_em).toLocaleString("pt-BR")}</span><p>${escapeHtml(r.descricao||"")}</p></div><span class="status">${escapeHtml(r.status||"pendente")}</span><button class="btn btn-danger" onclick="punishUser('${r.usuario_denunciado_id}')">Punir usuário</button></div>`).join("");
-}
-
-async function createAdminAccount(){
-    if(!window.resolveJaIsMaster){return;}
-    const name=document.getElementById("newAdminName")?.value.trim();
-    const email=document.getElementById("newAdminEmail")?.value.trim();
-    const pass=document.getElementById("newAdminPass")?.value||"";
-    const e=document.getElementById("newAdminError");
-    if(!name||!email||pass.length<6){e.textContent="Preencha nome, e-mail e uma senha de pelo menos 6 caracteres.";e.classList.remove("hidden");return;}
-    const {data,error}=await sb.auth.signUp({email,password:pass,options:{data:{nome,tipo:"admin"}}});
-    if(error){e.textContent=error.message;e.classList.remove("hidden");return;}
-    if(!data.user){e.textContent="Não foi possível criar o usuário.";e.classList.remove("hidden");return;}
-    if(data.session){
-        await sb.auth.signOut();
-        resetLoggedOut();
-        openModal(`<h2>Administrador criado</h2><p>O usuário <b>${escapeHtml(email)}</b> foi criado no Auth, mas o Supabase entrou automaticamente nessa nova conta.</p><div class="notice">Para finalizar a criação do ADM com segurança, deixe a confirmação de e-mail ativada. Depois confirme o e-mail e peça para a Conta Mestre concluir o vínculo do ADM.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal();login()">Voltar ao login</button>`);
-        return;
-    }
-    const {error:adminError}=await sb.from("administradores").insert({usuario_id:data.user.id,cargo:"admin",ativo:true});
-    if(adminError){e.textContent="Conta criada no Auth, mas não foi possível registrar o ADM. Verifique as políticas RLS.";e.classList.remove("hidden");return;}
-    document.getElementById("adminContent").innerHTML=`<div class="panel"><div class="success-icon">✓</div><h3>Administrador criado</h3><p>${escapeHtml(email)} agora está cadastrado como ADM. Ele receberá o código de confirmação no Gmail se a confirmação de e-mail estiver ativa.</p></div>`;
-}
-async function boot(){
-    renderServices();
-    await renderPros();
-    document.querySelectorAll(".auth-only,.client-only,.master-only").forEach(x=>x.style.display="none");
-    if(!sb)return;
-    const {data:{session}}=await sb.auth.getSession();
-    if(session?.user)await routeAuthenticatedUser(session.user);
-    sb.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT")resetLoggedOut();});
-}
-document.getElementById("loginBtn").onclick=login;
-document.getElementById("registerBtn").onclick=openRegister;
-document.querySelectorAll(".nav-link").forEach(b=>b.onclick=()=>{if(b.classList.contains("auth-only")&&!sb)return;showPage(b.dataset.page)});
-boot();
+const textCategories=["nome","cidade","estado","profissao","descricao","referenciaNome"];
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
+const escapeHtml=esc;
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active-page'));const p=document.getElementById(id);if(!p)return;p.classList.add('active-page');window.scrollTo({top:0,behavior:'smooth'});}
+function openModal(html){document.getElementById('modalContent').innerHTML=html;document.getElementById('modal').classList.remove('hidden');}
+function closeModal(){document.getElementById('modal').classList.add('hidden');}
+function requireBackend(){if(!supabaseReady){openModal('<h2>Supabase não configurado</h2><p>Configure o <b>config.js</b> com a URL e a chave publishable do Supabase.</p><div class="notice">Nunca coloque a chave service_role no navegador.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>');return false;}return true;}
+function showNotice(id,text,ok=false){const e=document.getElementById(id);if(!e)return;e.textContent=text;e.classList.remove('hidden','notice-success','notice-error');e.classList.add(ok?'notice-success':'notice-error');}
+function fieldInvalid(id,bad=true){const e=document.getElementById(id);if(e)e.classList.toggle('invalid',!!bad);}
+function onlyLetters(el){el.value=el.value.replace(/[0-9]/g,'');fieldInvalid(el.id,/[0-9]/.test(el.value));}
+function onlyNumbers(el){el.value=el.value.replace(/\D/g,'');fieldInvalid(el.id,false);}
+function maskPhone(el){let d=el.value.replace(/\D/g,'');if(d.startsWith('55'))d=d.slice(2);d=d.slice(0,11);let out='+55';if(d.length)out+=' '+d.slice(0,2);if(d.length>=3)out+=' '+d.slice(2,3);if(d.length>=4)out+=' '+d.slice(3,7);if(d.length>=8)out+='-'+d.slice(7,11);el.value=out;fieldInvalid(el.id,d.length!==11);}
+function phoneDigits(v){return String(v||'').replace(/\D/g,'');}
+function isValidBrazilPhone(v){const d=phoneDigits(v);return /^55\d{2}9\d{8}$/.test(d);}
+function looksLikeFakeNumber(v){const d=phoneDigits(v).replace(/^55/,'');if(d.length!==11)return true;return /^9(\d)\1{9}$/.test(d)||/^9(\d{10})$/.test(d)&&new Set(d.slice(1)).size===1;}
+function isValidCep(v){const d=String(v||'').replace(/\D/g,'');return d.length===8&&!/^([0-9])\1{7}$/.test(d);}
+function maskCep(el){let d=el.value.replace(/\D/g,'').slice(0,8);el.value=d.length>5?d.slice(0,5)+'-'+d.slice(5):d;fieldInvalid(el.id,d.length!==8);if(d.length===8)lookupCep(d);}
+function maskUf(el){el.value=el.value.replace(/[^A-Za-z]/g,'').toUpperCase().slice(0,2);fieldInvalid(el.id,el.value.length!==2);}
+function escapeAttr(v){return esc(v).replace(/`/g,'&#096;');}
+async function lookupCep(cep){if(!isValidCep(cep))return;const notice=document.getElementById('cepNotice');try{if(notice){notice.textContent='Consultando endereço…';notice.classList.remove('hidden','notice-error');}const r=await fetch('https://viacep.com.br/ws/'+cep+'/json/');const d=await r.json();if(d.erro)throw new Error('CEP não encontrado.');const set=(id,val)=>{const e=document.getElementById(id);if(e)e.value=val||'';};set('proAddress',d.logradouro);set('proNeighborhood',d.bairro);set('proCity',d.localidade);set('proState',d.uf);['proCity','proState'].forEach(id=>fieldInvalid(id,false));if(notice){notice.textContent='✓ Endereço encontrado automaticamente.';notice.classList.remove('hidden');notice.classList.add('notice-success');}}catch(err){fieldInvalid('proCep',true);if(notice){notice.textContent=err.message||'Não foi possível consultar o CEP.';notice.classList.remove('hidden');notice.classList.add('notice-error');}}}
+function hasContactAttempt(text){const raw=String(text||'').toLowerCase();const digits=raw.replace(/\D/g,'');if(/\b(whatsapp|whats|zap|wpp|telegram|instagram|insta|facebook|tiktok)\b/i.test(raw))return true;if(/@[a-z0-9_.-]{3,}/i.test(raw))return true;if(digits.length>=6)return true;if(/(?:\d\s*){6,}/.test(raw))return true;const words=raw.match(/zero|um|dois|tres|três|quatro|cinco|seis|sete|oito|nove/g)||[];return words.length>=6;}
+async function reportContactAttempt(text,conversationId){if(!sb)return null;return sb.rpc('registrar_tentativa_contato_resolveja',{p_conversa_id:conversationId,p_conteudo:String(text).slice(0,1000)});}
+async function sendSecureMessage(conversationId,text){const clean=String(text||'').trim();if(!clean)return {error:{message:'Digite uma mensagem.'}};if(hasContactAttempt(clean)){const r=await reportContactAttempt(clean,conversationId);if(r?.error)return {blocked:true,error:{message:r.error.message}};return {blocked:true,error:{message:'Mensagem bloqueada. A tentativa de compartilhar contato externo foi registrada e a conta recebeu a medida de segurança correspondente.'}};}const {data:{user}}=await sb.auth.getUser();const {data,error}=await sb.from('mensagens').insert({conversa_id:conversationId,remetente_id:user.id,conteudo:clean});return {data,error,blocked:false};}
+function openRegister(){openModal(`<h2>Crie sua conta</h2><p>Tenha acesso à busca de profissionais, solicitações e avaliações.</p><div class="form-group"><label>Nome completo</label><input id="clientName" placeholder="Seu nome completo" oninput="onlyLetters(this)"></div><div class="form-group"><label>E-mail</label><input id="clientEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="clientPass" type="password" autocomplete="new-password" placeholder="Crie uma senha"></div><div id="registerError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="createClientAccount()">Criar minha conta</button><div class="modal-divider">ou</div><button class="btn btn-outline" style="width:100%" onclick="openProfessionalRegister()">Crie uma conta profissional</button>`);}
+function openOtpVerification(email,kind){openModal(`<div class="success-icon">✉</div><h2>Confirme seu e-mail</h2><p>Enviamos um <b>código de 8 dígitos</b> para <b>${esc(email)}</b>.</p><div class="form-group"><label>Código</label><input id="otpCode" inputmode="numeric" maxlength="8" placeholder="00000000" oninput="onlyNumbers(this)"></div><div id="otpError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="verifySignupOtp('${kind}')">Confirmar código</button><button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="resendSignupOtp('${escapeAttr(email)}')">Enviar outro código</button>`);}
+async function createClientAccount(){if(!requireBackend())return;const name=document.getElementById('clientName').value.trim(),email=document.getElementById('clientEmail').value.trim().toLowerCase(),pass=document.getElementById('clientPass').value,e=document.getElementById('registerError');if(!name||/[0-9]/.test(name)||!email||pass.length<6){e.textContent='Confira os campos destacados. Nome não pode conter números e a senha deve ter pelo menos 6 caracteres.';e.classList.remove('hidden');fieldInvalid('clientName',!name||/[0-9]/.test(name));return;}pendingClientSignup={name,email,pass};const {data,error}=await sb.auth.signUp({email,password:pass,options:{data:{nome:name,tipo:'cliente'}}});if(error){pendingClientSignup=null;e.textContent=error.message;e.classList.remove('hidden');return;}if(data.session){await ensureUserProfile(data.user,name,'cliente');pendingClientSignup=null;closeModal();enterClient(name);return;}openOtpVerification(email,'client');}
+function professionOptions(q=''){const query=q.toLowerCase();return categories.filter(c=>c[1].toLowerCase().includes(query)).map(c=>`<button type="button" class="profession-option" onclick="selectProfession('${escapeAttr(c[1])}')"><span>${c[0]}</span>${esc(c[1])}</button>`).join('')||'<div class="chat-empty">Nenhuma profissão encontrada.</div>';}
+function selectProfession(name){const input=document.getElementById('proJob');const list=document.getElementById('professionOptions');if(input)input.value=name;if(list)list.classList.add('hidden');fieldInvalid('proJob',false);}
+function filterProfessions(){const q=document.getElementById('proJobSearch')?.value||'';const list=document.getElementById('professionOptions');if(list){list.innerHTML=professionOptions(q);list.classList.remove('hidden');}}
+function openProfessionalRegister(){openModal(`<h2>Crie uma conta profissional</h2><p>Preencha os dados. Campos inválidos ficam em vermelho e o endereço é preenchido pelo CEP.</p><div class="form-grid-2"><div class="form-group"><label>Nome completo</label><input id="proName" placeholder="Seu nome completo" oninput="onlyLetters(this)"></div><div class="form-group"><label>Telefone</label><input id="proPhone" inputmode="tel" maxlength="18" placeholder="+55 00 0 0000-0000" oninput="maskPhone(this)"></div><div class="form-group"><label>E-mail</label><input id="proEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></div><div class="form-group"><label>Senha</label><input id="proPass" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres"></div><div class="form-group"><label>Data de nascimento</label><input id="proBirth" type="date"></div><div class="form-group"><label>CEP</label><input id="proCep" inputmode="numeric" maxlength="9" placeholder="00000-000" oninput="maskCep(this)"><small id="cepNotice" class="field-help hidden"></small></div><div class="form-group"><label>Endereço</label><input id="proAddress" readonly placeholder="Preenchido pelo CEP"></div><div class="form-group"><label>Número</label><input id="proNumber" inputmode="numeric" placeholder="123" oninput="onlyNumbers(this)"></div><div class="form-group"><label>Bairro</label><input id="proNeighborhood" readonly placeholder="Preenchido pelo CEP"></div><div class="form-group"><label>Cidade</label><input id="proCity" placeholder="Ex.: Recife" oninput="onlyLetters(this)"></div><div class="form-group"><label>Estado</label><input id="proState" maxlength="2" placeholder="PE" oninput="maskUf(this)"></div></div><div class="form-group"><label>Profissão</label><div class="profession-picker"><input id="proJob" readonly placeholder="Selecione sua profissão" onclick="document.getElementById('professionOptions').classList.toggle('hidden')"><div class="profession-search-wrap"><input id="proJobSearch" placeholder="Pesquisar profissão..." oninput="filterProfessions()"></div><div id="professionOptions" class="profession-options hidden">${professionOptions()}</div></div></div><div class="form-group"><label>Tempo de experiência (anos)</label><input id="proExperience" inputmode="numeric" placeholder="Ex.: 5" oninput="onlyNumbers(this)"></div><div class="form-group"><label>Descrição do serviço</label><textarea id="proDescription" rows="4" maxlength="1000" placeholder="Conte sobre seu trabalho"></textarea></div>${[1,2,3,4,5].map(i=>`<div class="reference-card"><b>Cliente anterior ${i}</b><div class="form-grid-2"><div class="form-group"><label>Nome</label><input id="ref${i}Name" placeholder="Nome do cliente" oninput="onlyLetters(this)"></div><div class="form-group"><label>Telefone</label><input id="ref${i}Phone" inputmode="tel" maxlength="18" placeholder="+55 00 0 0000-0000" oninput="maskPhone(this)"></div></div></div>`).join('')}<div class="notice">A equipe entrará em contato com as 5 referências antes da aprovação.</div><div id="proRegisterError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="submitProfessionalApplication()">Enviar para análise</button>`);}
+async function submitProfessionalApplication(){if(!requireBackend())return;const g=id=>document.getElementById(id)?.value.trim()||'';const v={name:g('proName'),phone:g('proPhone'),email:g('proEmail').toLowerCase(),pass:document.getElementById('proPass')?.value||'',birth:g('proBirth'),cep:g('proCep'),address:g('proAddress'),number:g('proNumber'),neighborhood:g('proNeighborhood'),city:g('proCity'),state:g('proState').toUpperCase(),job:g('proJob'),experience:g('proExperience'),description:g('proDescription')};const e=document.getElementById('proRegisterError');let bad=false;const req=['proName','proPhone','proEmail','proPass','proBirth','proCep','proAddress','proNumber','proNeighborhood','proCity','proState','proJob','proExperience','proDescription'];req.forEach(id=>fieldInvalid(id,false));if(!v.name||/[0-9]/.test(v.name)){fieldInvalid('proName',true);bad=true;}if(!isValidBrazilPhone(v.phone)||looksLikeFakeNumber(v.phone)){fieldInvalid('proPhone',true);bad=true;}if(!v.email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email)){fieldInvalid('proEmail',true);bad=true;}if(v.pass.length<6){fieldInvalid('proPass',true);bad=true;}if(!v.birth){fieldInvalid('proBirth',true);bad=true;}if(!isValidCep(v.cep)){fieldInvalid('proCep',true);bad=true;}if(!v.address){fieldInvalid('proAddress',true);bad=true;}if(!/^\d+$/.test(v.number)){fieldInvalid('proNumber',true);bad=true;}if(!v.neighborhood){fieldInvalid('proNeighborhood',true);bad=true;}if(!v.city||/[0-9]/.test(v.city)){fieldInvalid('proCity',true);bad=true;}if(!/^[A-Z]{2}$/.test(v.state)){fieldInvalid('proState',true);bad=true;}if(!v.job){fieldInvalid('proJob',true);bad=true;}if(!/^\d+$/.test(v.experience)){fieldInvalid('proExperience',true);bad=true;}if(!v.description){fieldInvalid('proDescription',true);bad=true;}const refs=[];for(let i=1;i<=5;i++){const n=g(`ref${i}Name`),p=g(`ref${i}Phone`);fieldInvalid(`ref${i}Name`,false);fieldInvalid(`ref${i}Phone`,false);if(!n||/[0-9]/.test(n)){fieldInvalid(`ref${i}Name`,true);bad=true;}if(!isValidBrazilPhone(p)||looksLikeFakeNumber(p)){fieldInvalid(`ref${i}Phone`,true);bad=true;}refs.push({nome:n,telefone:p,ordem:i,contato_verificado:false});}if(bad){e.textContent='Corrija os campos destacados em vermelho antes de continuar.';e.classList.remove('hidden');return;}pendingProfessionalSignup={values:v,refs};const {data,error}=await sb.auth.signUp({email:v.email,password:v.pass,options:{data:{nome:v.name,tipo:'profissional'}}});if(error){pendingProfessionalSignup=null;e.textContent=error.message;e.classList.remove('hidden');return;}if(data.session){await finishProfessionalSignup(data.user);return;}openOtpVerification(v.email,'professional');}
+async function verifySignupOtp(kind){const code=document.getElementById('otpCode')?.value.trim(),e=document.getElementById('otpError'),pending=kind==='professional'?pendingProfessionalSignup:pendingClientSignup;if(!pending){e.textContent='Esta confirmação expirou.';e.classList.remove('hidden');return;}if(!/^\d{8}$/.test(code)){e.textContent='Digite exatamente 8 dígitos.';e.classList.remove('hidden');return;}const email=kind==='professional'?pending.values.email:pending.email;const {data,error}=await sb.auth.verifyOtp({email,token:code,type:'signup'});if(error){e.textContent='Código inválido ou expirado.';e.classList.remove('hidden');return;}if(kind==='professional')await finishProfessionalSignup(data.user);else{await ensureUserProfile(data.user,pending.name,'cliente');pendingClientSignup=null;closeModal();enterClient(pending.name);}}
+async function resendSignupOtp(email){const {error}=await sb.auth.resend({type:'signup',email});const e=document.getElementById('otpError');if(error){e.textContent=error.message;e.classList.remove('hidden');return;}e.textContent='Novo código enviado.';e.classList.remove('hidden');}
+async function finishProfessionalSignup(user){const p=pendingProfessionalSignup;if(!p)return;const v=p.values;const profile=await ensureUserProfile(user,v.name,'profissional',v.phone,v.city,v.state);if(profile.error){const e=document.getElementById('otpError')||document.getElementById('proRegisterError');e.textContent=profile.error.message;e.classList.remove('hidden');return;}const {data:pro,error}=await sb.from('profissionais').insert({usuario_id:user.id,nome:v.name,telefone:v.phone,email:v.email,data_nascimento:v.birth,cidade:v.city,estado:v.state,cep:v.cep,endereco:v.address,bairro:v.neighborhood,numero:v.number,profissao:v.job,experiencia:v.experience,descricao:v.description,status:'pendente',verificado:false}).select().single();if(error){const e=document.getElementById('otpError')||document.getElementById('proRegisterError');e.textContent=error.message;e.classList.remove('hidden');return;}const refs=p.refs.map(r=>({...r,profissional_id:pro.id}));const {error:re}=await sb.from('referencias').insert(refs);if(re){const e=document.getElementById('otpError')||document.getElementById('proRegisterError');e.textContent=re.message;e.classList.remove('hidden');return;}pendingProfessionalSignup=null;closeModal();openModal('<div class="success-icon">✓</div><h2>Cadastro enviado!</h2><p>Seu cadastro profissional está pendente de análise. Você será informado quando a equipe concluir a verificação.</p><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Concluir</button>');}
+async function ensureUserProfile(user,name,tipo,telefone='',cidade='',estado=''){return sb.from('usuarios').upsert({id:user.id,nome:name,email:user.email||'',telefone,cidade,estado,tipo,status:'ativo'},{onConflict:'id'}).select().single();}
+function login(){openModal(`<div class="login-modal-head"><div class="success-icon">✉</div><h2>Entrar na ResolveJá</h2><p>Use o e-mail de uma conta já cadastrada.</p><div class="form-group"><label>E-mail</label><input id="loginUser" type="email" placeholder="seuemail@exemplo.com"></div><div id="loginError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="sendLoginCode()">Enviar código</button><div class="modal-divider">Ainda não tem conta?</div><button class="btn btn-outline" style="width:100%" onclick="openRegister()">Crie sua conta</button>`);}
+async function sendLoginCode(){if(!requireBackend())return;const email=document.getElementById('loginUser')?.value.trim().toLowerCase(),e=document.getElementById('loginError');if(!email){e.textContent='Digite seu e-mail.';e.classList.remove('hidden');return;}const {data:existing}=await sb.from('usuarios').select('id').eq('email',email).maybeSingle();const {data:authData}=await sb.auth.getUser();if(!existing){e.textContent='Você não tem uma conta cadastrada com esse e-mail. Clique em “Crie sua conta” para se cadastrar.';e.classList.remove('hidden');return;}const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false}});if(error){e.textContent=error.message;e.classList.remove('hidden');return;}openLoginOtp(email);}
+function openLoginOtp(email){openModal(`<div class="success-icon">✉</div><h2>Código enviado</h2><p>Enviamos um código de 8 dígitos para <b>${esc(email)}</b>.</p><div class="form-group"><label>Código</label><input id="loginOtpCode" inputmode="numeric" maxlength="8" placeholder="00000000" oninput="onlyNumbers(this)"></div><div id="loginOtpError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="verifyLoginCode('${escapeAttr(email)}')">Entrar</button><button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="sendLoginCodeAgain('${escapeAttr(email)}')">Enviar outro código</button>`);}
+async function verifyLoginCode(email){const code=document.getElementById('loginOtpCode')?.value.trim(),e=document.getElementById('loginOtpError');if(!/^\d{8}$/.test(code)){e.textContent='Digite os 8 dígitos.';e.classList.remove('hidden');return;}const {data,error}=await sb.auth.verifyOtp({email,token:code,type:'email'});if(error){e.textContent='Código inválido ou expirado.';e.classList.remove('hidden');return;}await routeAuthenticatedUser(data.user);}
+async function sendLoginCodeAgain(email){const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false}});const e=document.getElementById('loginOtpError');if(error){e.textContent=error.message;e.classList.remove('hidden');return;}e.textContent='Novo código enviado.';e.classList.remove('hidden');}
+async function routeAuthenticatedUser(user){const {data:admin}=await sb.from('administradores').select('cargo,ativo').eq('usuario_id',user.id).eq('ativo',true).maybeSingle();if(admin){window.resolveJaIsAdmin=true;window.resolveJaIsMaster=String(admin.cargo||'').toLowerCase()==='master';closeModal();enterAdmin(window.resolveJaIsMaster);return;}const {data:account}=await sb.from('usuarios').select('status,punicao_expira_em,motivo_punicao').eq('id',user.id).maybeSingle();if(account?.status==='punido'){const exp=account.punicao_expira_em?new Date(account.punicao_expira_em):null;if(!exp||exp>new Date()){await sb.auth.signOut();openModal(`<h2>Conta bloqueada</h2><div class="notice">${esc(account.motivo_punicao||'Sua conta foi bloqueada.')}${exp?`<br>Até: ${exp.toLocaleString('pt-BR')}`:'<br>Suspensão permanente.'}</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);return;}}
+const {data:professional}=await sb.from('profissionais').select('id,nome,status,verificado,profissao').eq('usuario_id',user.id).maybeSingle();if(professional){window.resolveJaProfessional=professional;closeModal();enterProfessional(professional);return;}const {data:profile}=await sb.from('usuarios').select('nome,tipo').eq('id',user.id).maybeSingle();if(profile?.tipo==='profissional'){closeModal();openModal('<h2>Cadastro profissional pendente</h2><p>Seu cadastro ainda não está disponível para atendimento. Aguarde a análise da equipe.</p><button class="btn btn-primary" onclick="closeModal()">Entendi</button>');return;}closeModal();enterClient(profile?.nome||user.user_metadata?.nome||user.email?.split('@')[0]||'Cliente');}
+function enterClient(name){window.resolveJaProfessional=null;document.getElementById('publicNav').classList.add('hidden');document.getElementById('userNav').classList.remove('hidden');document.getElementById('welcome').textContent='Olá, '+String(name).split(' ')[0]+'!';document.querySelectorAll('.client-only').forEach(x=>x.style.display='');document.getElementById('professionalOnly')?.classList.add('hidden');showPage('clientHome');renderClientCategories();loadClientHome();loadClientConversations();loadPendingEvaluations();}
+async function loadClientHome(){if(!sb)return;const {data:{user}}=await sb.auth.getUser();if(!user)return;const {data:p}=await sb.from('usuarios').select('nome,cidade,estado,tipo').eq('id',user.id).maybeSingle();const n=p?.nome||user.email?.split('@')[0]||'Cliente';document.getElementById('clientWelcome').textContent='Olá, '+n.split(' ')[0]+' 👋';const i=document.getElementById('clientUserInfo');if(i)i.innerHTML=`<b>${esc(n)}</b><span>${esc(user.email||'')}</span>${p?.cidade?`<span>📍 ${esc(p.cidade)}${p.estado?', '+esc(p.estado):''}</span>`:''}`;}
+function renderClientCategories(){const g=document.getElementById('clientCategoryGrid');if(!g)return;g.innerHTML=categories.slice(0,16).map(c=>`<button class="mini-category" onclick="openProfessionals('${escapeAttr(c[1])}')"><span>${c[0]}</span><b>${esc(c[1])}</b></button>`).join('');}
+function renderServices(){const q=(document.getElementById('serviceSearch')?.value||'').toLowerCase();const g=document.getElementById('categoryGrid');if(!g)return;g.innerHTML=categories.filter(c=>(c[1]+' '+c[2]).toLowerCase().includes(q)).map(c=>`<button class="category" onclick="openProfessionals('${escapeAttr(c[1])}')"><span class="ico">${c[0]}</span><b>${esc(c[1])}</b><small>${esc(c[2])}</small></button>`).join('');}
+async function openProfessionals(cat){document.getElementById('proTitle').textContent=cat;showPage('professionals');await renderPros(cat);}
+async function renderPros(cat='Profissionais disponíveis'){const g=document.getElementById('proGrid');if(!g)return;let {data,error}=await sb.from('profissionais').select('id,usuario_id,nome,cidade,estado,profissao,experiencia,descricao,verificado,status').eq('status','aprovado').eq('verificado',true).order('criado_em',{ascending:false});if(error){g.innerHTML=`<div class="panel"><div class="notice notice-error">${esc(error.message)}</div></div>`;return;}if(cat&&cat!=='Profissionais disponíveis')data=(data||[]).filter(p=>p.profissao===cat);if(!data?.length){g.innerHTML='<div class="panel"><h3>Nenhum profissional encontrado</h3><p>Ainda não há profissionais aprovados nessa categoria.</p></div>';return;}const reps={};for(const p of data){const {data:r}=await sb.rpc('obter_reputacao_profissional',{p_profissional_id:p.id});reps[p.id]=r?.[0]||{media:0,total:0};}g.innerHTML=data.map(p=>{const a=reps[p.id]||{media:0,total:0},avg=Number(a.total)?Number(a.media).toFixed(1):'—';const ini=(p.nome||'RJ').split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase();return `<article class="pro-card"><div class="pro-top"><div class="avatar">${esc(ini)}</div><div><h3>${esc(p.nome)}</h3><div class="role">${esc(p.profissao||'')} • ${esc(p.cidade||'')}${p.estado?' - '+esc(p.estado):''}</div></div><span class="verified">✓</span></div><div class="rating">★★★★★ <span>${avg} ${a.length?`(${a.length} avaliação${a.length>1?'ões':''})`:''}</span></div><p>${esc(p.descricao||'Profissional verificado pela ResolveJá.')}</p><button class="btn btn-primary" style="width:100%" onclick="viewProfessional('${p.id}')">Ver perfil</button></article>`;}).join('');}
+async function viewProfessional(id){const {data:p,error}=await sb.from('profissionais').select('id,usuario_id,nome,cidade,estado,profissao,experiencia,descricao,status,verificado').eq('id',id).single();if(error||!p)return;const {data:r}=await sb.rpc('obter_reputacao_profissional',{p_profissional_id:id});const total=Number(r?.[0]?.total||0),avg=total?Number(r[0].media).toFixed(1):'Sem avaliações';openModal(`<h2>${esc(p.nome)}</h2><p><b>${esc(p.profissao)}</b> • ${esc(p.cidade||'')}${p.estado?' - '+esc(p.estado):''}</p><div class="profile-rating"><b>★ ${avg}</b><span>${total} pessoa${total===1?'':'s'} avaliou</span></div><p>${esc(p.descricao||'Sem descrição.')}</p><p><b>Experiência:</b> ${esc(p.experiencia||'Não informado')} anos</p><div class="notice">🛡️ Contatos externos são bloqueados no chat.</div><button class="btn btn-primary" style="width:100%" onclick="requestService('${p.id}')">Solicitar serviço</button><button class="btn btn-outline" style="width:100%;margin-top:8px" onclick="openChat('${p.id}','${escapeAttr(p.nome)}')">Enviar mensagem</button>`);}
+async function requestService(pid){const {data:{user}}=await sb.auth.getUser();if(!user){login();return;}const {data:pro}=await sb.from('profissionais').select('id,usuario_id,nome').eq('id',pid).single();if(!pro)return;if(pro.usuario_id===user.id){openModal('<h2>Operação bloqueada</h2><div class="notice">Você não pode solicitar seu próprio serviço.</div>');return;}const description=prompt('Descreva o serviço que você precisa:');if(description===null||!description.trim())return;const {data:c,error:ce}=await ensureConversation(user.id,pid);if(ce||!c){openModal(`<h2>Não foi possível iniciar a conversa</h2><div class="notice">${esc(ce?.message||'Tente novamente.')}</div>`);return;}const {data:service,error}=await sb.from('servicos').insert({cliente_id:user.id,profissional_id:pid,descricao:description.trim(),status:'solicitado',conversa_id:c.id}).select('id').single();if(error){openModal(`<h2>Não foi possível solicitar</h2><div class="notice">${esc(error.message)}</div>`);return;}openModal(`<div class="success-icon">✓</div><h2>Solicitação enviada!</h2><p>Agora vocês podem conversar pela aba Conversas.</p><button class="btn btn-primary" onclick="closeModal()">Concluir</button>`);}
+async function ensureConversation(clienteId,profissionalId){return sb.from('conversas').upsert({cliente_id:clienteId,profissional_id:profissionalId},{onConflict:'cliente_id,profissional_id'}).select('id').single();}
+async function openChat(pid,name){const {data:{user}}=await sb.auth.getUser();if(!user){login();return;}const {data:pro}=await sb.from('profissionais').select('id,usuario_id,nome').eq('id',pid).single();if(!pro||pro.usuario_id===user.id)return;const {data:c,error}=await ensureConversation(user.id,pid);if(error){openModal(`<h2>Chat indisponível</h2><div class="notice">${esc(error.message)}</div>`);return;}openModal(`<h2>Chat com ${esc(name||pro.nome)}</h2><div id="chatMessages" class="chat-messages"></div><div id="chatSecurityNotice" class="notice">🛡️ Não envie telefone, WhatsApp, @usuários ou contatos externos.</div><div class="chat-compose"><textarea id="chatInput" rows="2" maxlength="1000" placeholder="Digite sua mensagem..."></textarea><button class="btn btn-primary" onclick="sendChatMessage('${c.id}')">Enviar</button></div>`);await loadChatMessages(c.id);}
+async function loadChatMessages(cid){const box=document.getElementById('chatMessages');if(!box)return;const {data,error}=await sb.from('mensagens').select('remetente_id,conteudo,criado_em').eq('conversa_id',cid).order('criado_em');const {data:{user}}=await sb.auth.getUser();if(error){box.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}box.innerHTML=data?.length?data.map(m=>`<div class="chat-bubble ${m.remetente_id===user.id?'mine':'theirs'}"><p>${esc(m.conteudo)}</p><small>${new Date(m.criado_em).toLocaleString('pt-BR')}</small></div>`).join(''):'<p class="chat-empty">Nenhuma mensagem ainda.</p>';box.scrollTop=box.scrollHeight;}
+async function sendChatMessage(cid){const i=document.getElementById('chatInput'),t=i?.value.trim();if(!t)return;const r=await sendSecureMessage(cid,t);if(r.blocked||r.error){showNoticeInChat(r.error.message);return;}i.value='';await loadChatMessages(cid);loadClientConversations();}
+function showNoticeInChat(t){const e=document.getElementById('chatSecurityNotice');if(e){e.textContent=t;e.classList.remove('hidden');e.classList.add('notice-error');}}
+async function loadClientConversations(){const box=document.getElementById('clientConversationList');if(!box||!sb)return;const {data:{user}}=await sb.auth.getUser();if(!user)return;const {data:cs,error}=await sb.from('conversas').select('id,profissional_id,atualizado_em,criado_em').eq('cliente_id',user.id).order('atualizado_em',{ascending:false});if(error){box.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}if(!cs?.length){box.innerHTML='<div class="chat-empty">Você ainda não tem conversas.</div>';return;}const ids=cs.map(c=>c.profissional_id);const {data:ps}=await sb.from('profissionais').select('id,nome,profissao').in('id',ids);const map=new Map((ps||[]).map(p=>[p.id,p]));box.innerHTML=cs.map(c=>{const p=map.get(c.profissional_id)||{};return `<button class="professional-chat-row" onclick="openClientConversation('${c.id}','${escapeAttr(p.nome||'Profissional')}','${c.profissional_id}')"><span class="avatar">${esc((p.nome||'P').split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase())}</span><span><b>${esc(p.nome||'Profissional')}</b><small>${esc(p.profissao||'Profissional')} • ${new Date(c.atualizado_em||c.criado_em).toLocaleDateString('pt-BR')}</small></span><strong>›</strong></button>`;}).join('');}
+async function openClientConversation(cid,name,pid){const {data:pro}=await sb.from('profissionais').select('id,nome').eq('id',pid).single();openModal(`<h2>Chat com ${esc(name||pro?.nome)}</h2><div id="chatMessages" class="chat-messages"></div><div id="chatSecurityNotice" class="notice">🛡️ Contatos externos são bloqueados.</div><div class="chat-compose"><textarea id="chatInput" rows="2" maxlength="1000" placeholder="Digite sua mensagem..."></textarea><button class="btn btn-primary" onclick="sendChatMessage('${cid}')">Enviar</button></div>`);await loadChatMessages(cid);}
+async function enterProfessional(pro){document.getElementById('publicNav').classList.add('hidden');document.getElementById('userNav').classList.add('hidden');document.querySelectorAll('.client-only').forEach(x=>x.style.display='none');document.getElementById('professionalOnly')?.classList.remove('hidden');document.getElementById('professionalWelcome').textContent='Olá, '+String(pro.nome||'Profissional').split(' ')[0]+' 👋';showPage('professionalHome');loadProfessionalServices();loadSupportList('professional');}
+async function loadProfessionalServices(){const box=document.getElementById('professionalServiceList');if(!box)return;const {data:{user}}=await sb.auth.getUser();const {data:pro}=await sb.from('profissionais').select('id,nome').eq('usuario_id',user.id).maybeSingle();if(!pro)return;const {data:cs,error}=await sb.from('conversas').select('id,cliente_id,atualizado_em,criado_em').eq('profissional_id',pro.id).order('atualizado_em',{ascending:false});if(error){box.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}document.getElementById('professionalChatCount').textContent=String(cs?.length||0);if(!cs?.length){box.innerHTML='<div class="chat-empty">Nenhum cliente entrou em contato ainda.</div>';return;}const ids=cs.map(c=>c.cliente_id);const {data:users}=await sb.from('usuarios').select('id,nome').in('id',ids);const names=new Map((users||[]).map(x=>[x.id,x.nome]));box.innerHTML=cs.map(c=>{const n=names.get(c.cliente_id)||'Cliente';return `<button class="professional-chat-row" onclick="openProfessionalChat('${c.id}','${escapeAttr(n)}')"><span class="avatar">${esc(n.split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase())}</span><span><b>${esc(n)}</b><small>Cliente • ${new Date(c.atualizado_em||c.criado_em).toLocaleDateString('pt-BR')}</small></span><strong>›</strong></button>`;}).join('');}
+async function openProfessionalChat(cid,name){document.getElementById('professionalChatPlaceholder')?.classList.add('hidden');document.getElementById('professionalChatActive')?.classList.remove('hidden');document.getElementById('professionalChatClientName').textContent=name;document.getElementById('professionalChatClientAvatar').textContent=name.split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase();const i=document.getElementById('professionalChatInput');i.dataset.conversationId=cid;await loadProfessionalChatMessages(cid);await loadProfessionalActiveService(cid);}
+async function loadProfessionalChatMessages(cid){const box=document.getElementById('professionalChatMessages');if(!box)return;const {data,error}=await sb.from('mensagens').select('remetente_id,conteudo,criado_em').eq('conversa_id',cid).order('criado_em');const {data:{user}}=await sb.auth.getUser();if(error){box.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}box.innerHTML=data?.length?data.map(m=>`<div class="chat-bubble ${m.remetente_id===user.id?'mine':'theirs'}"><p>${esc(m.conteudo)}</p><small>${new Date(m.criado_em).toLocaleString('pt-BR')}</small></div>`).join(''):'<p class="chat-empty">Nenhuma mensagem ainda.</p>';box.scrollTop=box.scrollHeight;}
+async function loadProfessionalActiveService(cid){const b=document.getElementById('professionalServiceActions');if(!b)return;const {data}=await sb.from('servicos').select('id,status,descricao').eq('conversa_id',cid).in('status',['solicitado','em_andamento']).order('criado_em',{ascending:false}).limit(1).maybeSingle();b.innerHTML=data?`<div class="service-active"><span>Serviço: ${esc(data.descricao||'Solicitação')}</span><button class="btn btn-primary" onclick="finishService('${data.id}')">✓ Finalizar serviço</button></div>`:'<span class="field-help">Nenhum serviço ativo nesta conversa.</span>';}
+async function sendProfessionalMessage(){const i=document.getElementById('professionalChatInput'),cid=i?.dataset.conversationId,t=i?.value.trim();if(!cid||!t)return;const r=await sendSecureMessage(cid,t),n=document.getElementById('professionalChatNotice');if(r.blocked||r.error){n.textContent=r.error.message;n.classList.remove('hidden');return;}n.classList.add('hidden');i.value='';await loadProfessionalChatMessages(cid);loadProfessionalServices();}
+async function finishService(id){const {error}=await sb.rpc('finalizar_servico_resolveja',{p_servico_id:id});if(error){openModal(`<h2>Não foi possível finalizar</h2><div class="notice">${esc(error.message)}</div>`);return;}openModal('<div class="success-icon">✓</div><h2>Serviço finalizado</h2><p>O cliente agora poderá avaliar o serviço.</p><button class="btn btn-primary" onclick="closeModal();loadProfessionalActiveService(document.getElementById(\'professionalChatInput\').dataset.conversationId)">Concluir</button>');}
+async function loadPendingEvaluations(){const box=document.getElementById('pendingEvaluations');if(!box||!sb)return;const {data:{user}}=await sb.auth.getUser();if(!user)return;const {data:services}=await sb.from('servicos').select('id,profissional_id,descricao,concluido_em').eq('cliente_id',user.id).eq('status','concluido').order('concluido_em',{ascending:false});if(!services?.length){box.innerHTML='';return;}const ids=services.map(s=>s.id);const {data:avs}=await sb.from('avaliacoes').select('servico_id').in('servico_id',ids);const done=new Set((avs||[]).map(a=>a.servico_id));const pending=services.filter(s=>!done.has(s.id));if(!pending.length){box.innerHTML='';return;}const {data:pros}=await sb.from('profissionais').select('id,nome,profissao').in('id',[...new Set(pending.map(s=>s.profissional_id))]);const map=new Map((pros||[]).map(p=>[p.id,p]));box.innerHTML='<h3>⭐ Avalie um profissional</h3>'+pending.map(s=>{const p=map.get(s.profissional_id)||{};return `<div class="evaluation-pending"><div><b>${esc(p.nome||'Profissional')}</b><small>${esc(p.profissao||'')}</small></div><button class="btn btn-primary" onclick="openEvaluation('${s.id}','${s.profissional_id}','${escapeAttr(p.nome||'Profissional')}')">Avaliar</button></div>`;}).join('');}
+function openEvaluation(serviceId,proId,name){openModal(`<h2>Avalie ${esc(name)}</h2><p>A nota pública vai de 1 a 10. O motivo será enviado apenas para a equipe administrativa.</p><div class="rating-picker">${Array.from({length:10},(_,i)=>`<button type="button" onclick="selectRating(${i+1})" id="rating${i+1}">${i+1}</button>`).join('')}</div><input type="hidden" id="evaluationRating"><div class="form-group"><label>Motivo da avaliação</label><textarea id="evaluationReason" maxlength="1000" placeholder="Conte para a equipe o motivo da sua nota"></textarea></div><div id="evaluationError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="submitEvaluation('${serviceId}','${proId}')">Enviar avaliação</button>`);}
+function selectRating(n){document.getElementById('evaluationRating').value=n;for(let i=1;i<=10;i++)document.getElementById('rating'+i)?.classList.toggle('selected',i<=n);}
+async function submitEvaluation(serviceId,proId){const nota=Number(document.getElementById('evaluationRating')?.value),motivo=document.getElementById('evaluationReason')?.value.trim(),e=document.getElementById('evaluationError');if(nota<1||nota>10){e.textContent='Escolha uma nota de 1 a 10.';e.classList.remove('hidden');return;}if(!motivo){e.textContent='Informe o motivo da avaliação.';e.classList.remove('hidden');return;}const {error}=await sb.from('avaliacoes').insert({servico_id:serviceId,profissional_id:proId,cliente_id:(await sb.auth.getUser()).data.user.id,nota,motivo,ativa:true});if(error){e.textContent=error.message;e.classList.remove('hidden');return;}closeModal();loadPendingEvaluations();}
+function openClientConversations(){showPage('clientConversations');loadClientConversations();}
+function openSupport(){showPage('support');loadSupportList(window.resolveJaProfessional?'professional':'client');}
+async function createSupport(){const reason=document.getElementById('supportReason')?.value.trim();if(!reason){showNotice('supportCreateError','Informe o motivo do suporte.');return;}const {data:{user}}=await sb.auth.getUser();const {data,error}=await sb.from('suportes').insert({usuario_id:user.id,motivo:reason,status:'aberto'}).select('id').single();if(error){showNotice('supportCreateError',error.message);return;}document.getElementById('supportReason').value='';await loadSupportList(window.resolveJaProfessional?'professional':'client');openSupportChat(data.id,reason);}
+async function loadSupportList(kind){const box=document.getElementById('supportList');if(!box)return;const {data,error}=await sb.from('suportes').select('id,motivo,status,criado_em,atualizado_em').order('atualizado_em',{ascending:false});if(error){box.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}if(!data?.length){box.innerHTML='<div class="chat-empty">Nenhum suporte aberto.</div>';return;}box.innerHTML=data.map(s=>`<button class="professional-chat-row" onclick="openSupportChat('${s.id}','${escapeAttr(s.motivo)}')"><span class="avatar">?</span><span><b>${esc(s.motivo)}</b><small>${esc(s.status)} • ${new Date(s.atualizado_em||s.criado_em).toLocaleDateString('pt-BR')}</small></span><strong>›</strong></button>`).join('');}
+async function openSupportChat(id,motivo){const {data:s}=await sb.from('suportes').select('id,motivo,status').eq('id',id).single();openModal(`<h2>Suporte</h2><p><b>Motivo:</b> ${esc(motivo||s?.motivo||'')}</p><div id="supportMessages" class="chat-messages"></div><div id="supportNotice" class="notice">Conversa com a equipe administrativa.</div><div class="chat-compose"><textarea id="supportInput" rows="2" maxlength="1000" placeholder="Digite sua mensagem..."></textarea><button class="btn btn-primary" onclick="sendSupportMessage('${id}')">Enviar</button></div>`);await loadSupportMessages(id);}
+async function loadSupportMessages(id){const b=document.getElementById('supportMessages');if(!b)return;const {data,error}=await sb.from('mensagens_suporte').select('remetente_id,conteudo,criado_em').eq('suporte_id',id).order('criado_em');const {data:{user}}=await sb.auth.getUser();if(error){b.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}b.innerHTML=data?.length?data.map(m=>`<div class="chat-bubble ${m.remetente_id===user.id?'mine':'theirs'}"><p>${esc(m.conteudo)}</p><small>${new Date(m.criado_em).toLocaleString('pt-BR')}</small></div>`).join(''):'<p class="chat-empty">Nenhuma mensagem ainda.</p>';b.scrollTop=b.scrollHeight;}
+async function sendSupportMessage(id){const i=document.getElementById('supportInput'),t=i?.value.trim();if(!t)return;if(hasContactAttempt(t)){showNotice('supportNotice','Mensagem bloqueada por segurança.');return;}const {data:{user}}=await sb.auth.getUser();const {error}=await sb.from('mensagens_suporte').insert({suporte_id:id,remetente_id:user.id,conteudo:t});if(error){showNotice('supportNotice',error.message);return;}i.value='';await loadSupportMessages(id);}
+async function loadAdminSupport(){const box=document.getElementById('adminSupportList');if(!box)return;const {data,error}=await sb.from('suportes').select('id,usuario_id,motivo,status,criado_em,atualizado_em').order('atualizado_em',{ascending:false});if(error){box.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}const ids=[...new Set((data||[]).map(x=>x.usuario_id))];const {data:users}=await sb.from('usuarios').select('id,nome,email').in('id',ids);const map=new Map((users||[]).map(u=>[u.id,u]));box.innerHTML=(data||[]).map(s=>{const u=map.get(s.usuario_id)||{};return `<button class="professional-chat-row" onclick="openAdminSupport('${s.id}','${escapeAttr(u.nome||'Usuário')}')"><span class="avatar">${esc((u.nome||'U').split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase())}</span><span><b>${esc(u.nome||'Usuário')}</b><small>${esc(s.motivo)} • ${esc(s.status)}</small></span><strong>›</strong></button>`;}).join('')||'<div class="chat-empty">Nenhum suporte.</div>';}
+async function openAdminSupport(id,userName){const {data:s}=await sb.from('suportes').select('motivo,status').eq('id',id).single();openModal(`<h2>Suporte de ${esc(userName)}</h2><p><b>Motivo:</b> ${esc(s?.motivo||'')}</p><div id="supportMessages" class="chat-messages"></div><div id="supportNotice" class="notice">Atendimento administrativo.</div><div class="chat-compose"><textarea id="supportInput" rows="2" maxlength="1000" placeholder="Responder ao usuário..."></textarea><button class="btn btn-primary" onclick="sendAdminSupportMessage('${id}')">Enviar</button></div>`);await loadSupportMessages(id);}
+async function sendAdminSupportMessage(id){const i=document.getElementById('supportInput'),t=i?.value.trim();if(!t)return;const {data:{user}}=await sb.auth.getUser();const {error}=await sb.from('mensagens_suporte').insert({suporte_id:id,remetente_id:user.id,conteudo:t});if(error){showNotice('supportNotice',error.message);return;}i.value='';await loadSupportMessages(id);}
+async function enterAdmin(master){document.getElementById('publicNav').classList.add('hidden');document.getElementById('userNav').classList.add('hidden');document.querySelectorAll('.client-only').forEach(x=>x.style.display='none');document.getElementById('professionalOnly')?.classList.add('hidden');showPage('admin');adminPage('dashboard',document.querySelector('.side-btn'));}
+async function adminPage(page,el){document.querySelectorAll('.side-btn').forEach(x=>x.classList.remove('active'));if(el)el.classList.add('active');const c=document.getElementById('adminContent');if(!c)return;if(page==='dashboard'){c.innerHTML='<h2>Visão geral</h2><div class="admin-stats" id="adminStats">Carregando...</div>';const [u,p,s]=await Promise.all([sb.from('usuarios').select('id',{count:'exact',head:true}),sb.from('profissionais').select('id',{count:'exact',head:true}).eq('status','pendente'),sb.from('suportes').select('id',{count:'exact',head:true}).eq('status','aberto')]);document.getElementById('adminStats').innerHTML=`<div class="stat-card"><b>${u.count||0}</b><span>Usuários</span></div><div class="stat-card"><b>${p.count||0}</b><span>Profissionais pendentes</span></div><div class="stat-card"><b>${s.count||0}</b><span>Suportes abertos</span></div>`;}
+else if(page==='analyses'){c.innerHTML='<h2>Análises</h2><div id="analysisList" class="panel">Carregando...</div>';const {data,error}=await sb.from('profissionais').select('id,nome,email,telefone,cidade,estado,profissao,status,verificado,criado_em').eq('status','pendente').order('criado_em',{ascending:false});const b=document.getElementById('analysisList');if(error){b.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}b.innerHTML=(data||[]).map(p=>`<div class="admin-application"><div><b>${esc(p.nome)}</b><span>${esc(p.profissao)} • ${esc(p.cidade||'')}${p.estado?', '+esc(p.estado):''}</span><small>${esc(p.email||'')} • ${esc(p.telefone||'')}</small></div><button class="btn btn-primary" onclick="analyzeApplication('${p.id}')">Analisar</button></div>`).join('')||'<p>Nenhum cadastro pendente.</p>';}
+else if(page==='professionals'){c.innerHTML='<h2>Profissionais</h2><div id="adminPros" class="panel">Carregando...</div>';const {data,error}=await sb.from('profissionais').select('id,nome,profissao,cidade,estado,status,verificado').order('criado_em',{ascending:false});const b=document.getElementById('adminPros');if(error){b.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}b.innerHTML=(data||[]).map(p=>`<div class="admin-application"><div><b>${esc(p.nome)}</b><span>${esc(p.profissao||'')} • ${esc(p.cidade||'')}</span></div><span class="status">${esc(p.status||'')}</span></div>`).join('')||'<p>Nenhum profissional.</p>';}
+else if(page==='users'){c.innerHTML='<h2>Usuários</h2><p class="muted">Todos os usuários são carregados automaticamente.</p><div id="adminUserResults" class="panel">Carregando...</div>';await loadAllAdminUsers();}
+else if(page==='reports'){c.innerHTML='<h2>Denúncias</h2><p class="muted">Ocorrências do Anti-ZAP e medidas automáticas.</p><div id="reportsList" class="panel">Carregando...</div>';await loadAdminReports();}
+else if(page==='evaluations'){c.innerHTML='<h2>Avaliações</h2><p class="muted">Notas públicas e motivos privados enviados pelos clientes.</p><div id="evaluationsList" class="panel">Carregando...</div>';await loadAdminEvaluations();}
+else if(page==='support'){c.innerHTML='<h2>Suporte</h2><div id="adminSupportList" class="panel">Carregando...</div>';await loadAdminSupport();}
+else if(page==='logs'){c.innerHTML='<h2>Registros</h2><div id="logsList" class="panel">Carregando...</div>';await loadAdminLogs();}
+else if(page==='admins'){c.innerHTML='<h2>Administradores</h2><p class="muted">A Conta Mestre controla quem tem acesso administrativo.</p><div class="panel"><div class="form-grid-2"><div class="form-group"><label>Nome</label><input id="newAdminName" oninput="onlyLetters(this)"></div><div class="form-group"><label>E-mail</label><input id="newAdminEmail" type="email"></div><div class="form-group"><label>Senha</label><input id="newAdminPass" type="password"></div></div><div id="newAdminError" class="notice hidden"></div><button class="btn btn-primary" onclick="createAdminAccount()">Criar administrador</button></div><div id="adminAccountsList" class="panel">Carregando...</div>';await loadAdminAccounts();}
+else c.innerHTML='<h2>Configurações</h2><div class="panel"><p>Use esta área para administrar permissões, segurança e atendimento.</p></div>';}
+async function loadAllAdminUsers(){const b=document.getElementById('adminUserResults');const {data,error}=await sb.from('usuarios').select('id,nome,email,telefone,cidade,estado,tipo,status,punicao_expira_em,motivo_punicao,criado_em').order('criado_em',{ascending:false});if(error){b.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}const ids=(data||[]).map(u=>u.id);const {data:pros}=ids.length?await sb.from('profissionais').select('usuario_id').in('usuario_id',ids):{data:[]};const proIds=new Set((pros||[]).map(p=>p.usuario_id));b.innerHTML=(data||[]).map(u=>{const proType=u.tipo==='profissional'||proIds.has(u.id);return `<div class="admin-user-row"><div><b>${esc(u.nome||'Sem nome')}</b><span>${proType?'👷 Profissional':'👤 Cliente'} • ${esc(u.cidade||'')}${u.estado?', '+esc(u.estado):''}</span><small>${esc(u.email||'')} • ${u.status==='punido'?'⛔ '+esc(u.motivo_punicao||'Punido'):'✅ Ativo'}</small></div><div class="admin-user-actions"><button class="btn btn-danger" onclick="punishUser('${u.id}')">Punir</button><button class="btn btn-outline" onclick="clearUserPunishment('${u.id}')">Liberar</button></div></div>`;}).join('')||'<p>Nenhum usuário.</p>';}
+async function punishUser(id){openModal(`<h2>Punir usuário</h2><div class="form-group"><label>Duração</label><select id="punishDuration"><option value="5">5 minutos</option><option value="60">1 hora</option><option value="1440">24 horas</option><option value="10080">7 dias</option><option value="0">Permanente</option></select></div><div class="form-group"><label>Motivo</label><input id="punishReason" placeholder="Motivo da punição"></div><div id="punishError" class="notice hidden"></div><button class="btn btn-danger" style="width:100%" onclick="applyPunishment('${id}')">Aplicar</button>`);}
+async function applyPunishment(id){const d=Number(document.getElementById('punishDuration').value),reason=document.getElementById('punishReason').value.trim()||'Violação das regras da ResolveJá';const {error}=await sb.rpc('punir_usuario_resolveja',{p_usuario_id:id,p_minutos:d,p_motivo:reason});if(error){showNotice('punishError',error.message);return;}closeModal();adminPage('users',document.querySelectorAll('.side-btn')[3]);}
+async function clearUserPunishment(id){const {error}=await sb.rpc('liberar_usuario_resolveja',{p_usuario_id:id});if(error){openModal(`<h2>Erro</h2><div class="notice">${esc(error.message)}</div>`);return;}loadAllAdminUsers();}
+async function loadAdminReports(){const b=document.getElementById('reportsList');const {data,error}=await sb.from('denuncias_seguranca').select('id,denunciante_id,usuario_denunciado_id,tipo,descricao,status,acao_aplicada,criado_em').order('criado_em',{ascending:false}).limit(200);if(error){b.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}const ids=[...new Set((data||[]).flatMap(r=>[r.denunciante_id,r.usuario_denunciado_id]).filter(Boolean))];const {data:users}=await sb.from('usuarios').select('id,nome,email').in('id',ids);const names=new Map((users||[]).map(u=>[u.id,u]));b.innerHTML=(data||[]).map(r=>{const offender=names.get(r.usuario_denunciado_id)||{};return `<div class="report-row"><div><b>${esc(r.tipo)}</b><span>Usuário: ${esc(offender.nome||'Não identificado')} • ${esc(offender.email||'')}</span><p>${esc(r.descricao||'')}</p><small>${new Date(r.criado_em).toLocaleString('pt-BR')} • Ação: ${esc(r.acao_aplicada||'nenhuma')}</small></div><span class="status">${esc(r.status)}</span><div class="admin-user-actions"><button class="btn btn-danger" onclick="punishUser('${r.usuario_denunciado_id}')">Punir</button><button class="btn btn-outline" onclick="resolveReport('${r.id}','ignorar')">Ignorar</button><button class="btn btn-outline" onclick="resolveReport('${r.id}','reverter')">Reverter ação</button></div></div>`;}).join('')||'<p>Nenhuma ocorrência.</p>';}
+async function resolveReport(id,action){const {error}=await sb.rpc('resolver_denuncia_resolveja',{p_denuncia_id:id,p_acao:action});if(error){openModal(`<h2>Erro</h2><div class="notice">${esc(error.message)}</div>`);return;}loadAdminReports();}
+async function loadAdminEvaluations(){const b=document.getElementById('evaluationsList');const {data,error}=await sb.from('avaliacoes').select('id,servico_id,cliente_id,profissional_id,nota,motivo,ativa,criado_em').order('criado_em',{ascending:false}).limit(300);if(error){b.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}const ids=[...new Set((data||[]).flatMap(x=>[x.cliente_id,x.profissional_id]).filter(Boolean))];const {data:us}=await sb.from('usuarios').select('id,nome').in('id',ids);const {data:ps}=await sb.from('profissionais').select('id,nome').in('id',ids);const names=new Map([...(us||[]).map(x=>[x.id,x.nome]),...(ps||[]).map(x=>[x.id,x.nome])]);b.innerHTML=(data||[]).map(a=>`<div class="report-row"><div><b>Nota ${esc(a.nota)}/10</b><span>Avaliador: ${esc(names.get(a.cliente_id)||'')} • Avaliado: ${esc(names.get(a.profissional_id)||'')}</span><p>Motivo: ${esc(a.motivo||'Sem motivo')}</p><small>${new Date(a.criado_em).toLocaleString('pt-BR')}</small></div><button class="btn btn-danger" onclick="removeEvaluation('${a.id}')">Retirar avaliação</button></div>`).join('')||'<p>Nenhuma avaliação.</p>';}
+async function removeEvaluation(id){const {error}=await sb.rpc('retirar_avaliacao_resolveja',{p_avaliacao_id:id});if(error){openModal(`<h2>Erro</h2><div class="notice">${esc(error.message)}</div>`);return;}loadAdminEvaluations();}
+async function loadAdminLogs(){const b=document.getElementById('logsList');const {data,error}=await sb.from('registros_admin').select('id,admin_id,acao,alvo_id,motivo,detalhes,criado_em').order('criado_em',{ascending:false}).limit(300);if(error){b.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}const ids=[...new Set((data||[]).map(x=>x.admin_id).filter(Boolean))];const {data:us}=await sb.from('usuarios').select('id,nome,email').in('id',ids);const map=new Map((us||[]).map(x=>[x.id,x]));b.innerHTML=(data||[]).map(l=>`<div class="report-row"><div><b>${esc(l.acao)}</b><span>Por: ${esc(map.get(l.admin_id)?.nome||'Administrador')}</span><p>${esc(l.motivo||'')}</p><small>${new Date(l.criado_em).toLocaleString('pt-BR')}</small><pre class="log-json">${esc(JSON.stringify(l.detalhes||{},null,2))}</pre></div></div>`).join('')||'<p>Nenhum registro.</p>';}
+async function analyzeApplication(id){const {data:p,error}=await sb.from('profissionais').select('id,nome,telefone,email,data_nascimento,cidade,estado,cep,endereco,bairro,numero,profissao,experiencia,descricao,status,verificado').eq('id',id).single();if(error||!p){openModal('<h2>Erro</h2><div class="notice">Não foi possível carregar o cadastro.</div>');return;}const {data:refs}=await sb.from('referencias').select('nome,telefone,ordem,contato_verificado,observacao').eq('profissional_id',id).order('ordem');openModal(`<h2>Verificação profissional</h2><div class="analysis-grid"><div><b>Nome</b><span>${esc(p.nome)}</span></div><div><b>E-mail</b><span>${esc(p.email)}</span></div><div><b>Telefone</b><span>${esc(p.telefone)}</span></div><div><b>Endereço</b><span>${esc(p.endereco||'')} ${esc(p.numero||'')}</span></div><div><b>Bairro</b><span>${esc(p.bairro||'')}</span></div><div><b>CEP</b><span>${esc(p.cep||'')}</span></div><div><b>Cidade/UF</b><span>${esc(p.cidade||'')} - ${esc(p.estado||'')}</span></div><div><b>Profissão</b><span>${esc(p.profissao||'')}</span></div><div><b>Experiência</b><span>${esc(p.experiencia||'')} anos</span></div></div><div class="panel"><h3>5 referências</h3>${(refs||[]).map(r=>`<div class="reference-admin"><b>${r.ordem}. ${esc(r.nome)}</b><span>${esc(r.telefone)}</span><small>${r.contato_verificado?'✓ Verificado':'○ Pendente'} ${esc(r.observacao||'')}</small></div>`).join('')}</div><div class="form-group"><label>Observação da análise</label><textarea id="analysisReason" rows="3" placeholder="Motivo/observação da decisão"></textarea></div><div id="analysisError" class="notice hidden"></div><div class="analysis-actions"><button class="btn btn-danger" onclick="reviewProfessional('${id}','rejeitado')">Rejeitar</button><button class="btn btn-primary" onclick="reviewProfessional('${id}','aprovado')">Aprovar</button></div>`);}
+async function reviewProfessional(id,status){const reason=document.getElementById('analysisReason')?.value.trim()||'Sem observação informada';const {error}=await sb.rpc('revisar_profissional_resolveja',{p_profissional_id:id,p_status:status,p_motivo:reason});if(error){showNotice('analysisError',error.message);return;}closeModal();adminPage('analyses',document.querySelectorAll('.side-btn')[1]);}
+async function createAdminAccount(){if(!window.resolveJaIsMaster){openModal('<h2>Acesso negado</h2><p>Apenas a Conta Mestre pode criar administradores.</p>');return;}const name=document.getElementById('newAdminName').value.trim(),email=document.getElementById('newAdminEmail').value.trim(),password=document.getElementById('newAdminPass').value,e=document.getElementById('newAdminError');if(!name||/[0-9]/.test(name)||!email||password.length<6){showNotice('newAdminError','Preencha os dados corretamente.');return;}const {data,error}=await sb.functions.invoke('create-admin',{body:{name,email,password}});if(error||data?.error){showNotice('newAdminError',error?.message||data?.error||'Não foi possível criar o administrador.');return;}openModal('<div class="success-icon">✓</div><h2>Administrador criado</h2><p>A conta foi criada no Authentication e vinculada ao painel administrativo.</p><button class="btn btn-primary" onclick="closeModal();adminPage(\'admins\',document.querySelectorAll(\'.side-btn\')[6])">Concluir</button>');}
+async function loadAdminAccounts(){const b=document.getElementById('adminAccountsList');const {data,error}=await sb.from('administradores').select('usuario_id,cargo,ativo,criado_em').order('criado_em',{ascending:false});if(error){b.innerHTML=`<div class="notice">${esc(error.message)}</div>`;return;}const ids=(data||[]).map(a=>a.usuario_id);const {data:us}=await sb.from('usuarios').select('id,nome,email').in('id',ids);const map=new Map((us||[]).map(u=>[u.id,u]));b.innerHTML='<h3>Contas administrativas</h3>'+(data||[]).map(a=>{const u=map.get(a.usuario_id)||{};return `<div class="admin-user-row"><div><b>${esc(u.nome||'Sem nome')}</b><span>${esc(a.cargo)} • ${esc(u.email||'')}</span></div><button class="btn ${a.ativo?'btn-danger':'btn-primary'}" onclick="toggleAdmin('${a.usuario_id}',${!a.ativo})">${a.ativo?'Desativar':'Ativar'}</button></div>`;}).join('');}
+async function toggleAdmin(id,active){const {error}=await sb.rpc('configurar_administrador_resolveja',{p_usuario_id:id,p_ativo:active});if(error){openModal(`<h2>Erro</h2><div class="notice">${esc(error.message)}</div>`);return;}loadAdminAccounts();}
+function resetLoggedOut(){window.resolveJaProfessional=null;window.resolveJaIsAdmin=false;window.resolveJaIsMaster=false;document.getElementById('professionalOnly')?.classList.add('hidden');document.getElementById('userNav')?.classList.add('hidden');document.getElementById('publicNav')?.classList.remove('hidden');document.querySelectorAll('.client-only').forEach(x=>x.style.display='none');showPage('home');}
+async function logout(){if(sb)await sb.auth.signOut();resetLoggedOut();}
+function boot(){renderServices();if(!sb)return;sb.auth.getSession().then(({data:{session}})=>{if(session?.user)routeAuthenticatedUser(session.user);});sb.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT')resetLoggedOut();});}
+document.getElementById('loginBtn').onclick=login;document.getElementById('registerBtn').onclick=openRegister;document.querySelectorAll('.nav-link').forEach(b=>b.onclick=()=>showPage(b.dataset.page));boot();
