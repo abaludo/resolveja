@@ -90,3 +90,55 @@ button,input,textarea,select{font:inherit}
 .btn{border-radius:13px;font-weight:800}.btn-primary{box-shadow:0 8px 20px rgba(22,130,74,.16)}.btn-primary:hover{transform:translateY(-1px)}
 .notice{border-radius:13px}.status{border-radius:999px}
 @media(max-width:800px){.client-welcome,.professional-chat-header{padding:22px}.client-content,.professional-chat-shell,.admin-content{padding:24px 18px}}
+
+
+/* Ajustes de layout e legibilidade v3 */
+.section-head{max-width:1180px;margin:0 auto 28px;padding:4px 8px}
+#services>.section-head,#professionals>.section-head,#clientConversations>.section-head,#support>.section-head,#clientSettings>.section-head{padding-left:0;padding-right:0}
+#services,#professionals,#clientConversations,#support,#clientSettings{min-height:calc(100vh - 76px)}
+#services>.category-grid,#professionals>.pro-grid{max-width:1180px;margin:0 auto;padding-left:0;padding-right:0}
+#clientConversations>.chat-list-page,#support>.support-create,#support>div:not(.section-head),#clientSettings>.settings-card{max-width:1180px;margin-left:auto;margin-right:auto}
+#support>.support-create{max-width:820px}
+#support>div:last-child{max-width:1180px;margin:0 auto;padding:0 0 45px}
+.chat-list-page{max-height:calc(100vh - 245px);overflow-y:auto;padding:4px 8px 18px}
+.chat-list-page::-webkit-scrollbar,.professional-chat-list::-webkit-scrollbar,.chat-messages::-webkit-scrollbar,.profession-options::-webkit-scrollbar{width:8px}
+.chat-list-page::-webkit-scrollbar-thumb,.professional-chat-list::-webkit-scrollbar-thumb,.chat-messages::-webkit-scrollbar-thumb{background:#cbd9d1;border-radius:99px}
+.report-row,.admin-application,.admin-user-row,.log-card{display:flex;align-items:center;gap:18px}
+.report-row>div:first-child,.admin-application>div:first-child,.admin-user-row>div,.log-card{min-width:0}
+.report-row>div:first-child,.admin-application>div:first-child,.admin-user-row>div{display:flex;flex-direction:column;gap:6px;flex:1}
+.report-row p,.admin-application p{margin:3px 0 0;line-height:1.5;overflow-wrap:anywhere}
+.report-row small,.admin-application small{color:#7a877f;line-height:1.4}
+.report-row .status{flex:none}
+.admin-user-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.admin-name-only{padding:14px 16px}
+.admin-name-only .avatar{width:40px;height:40px;border-radius:12px}
+.admin-name-only span:not(.avatar){color:#78857e;font-size:13px}
+.log-card{display:block;background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin:10px 0;box-shadow:var(--shadow-sm)}
+.log-card-top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:13px;border-bottom:1px solid #edf1ee}
+.log-card-top time{font-size:12px;color:#7a877f;white-space:nowrap}
+.log-action{display:inline-flex;width:max-content;max-width:100%;padding:7px 11px;border-radius:999px;background:var(--green-3);color:#237545;font-size:12px;font-weight:800}
+.log-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:15px 0}
+.log-grid>div{background:#f7faf8;border:1px solid #e7eee9;border-radius:12px;padding:11px 12px;min-width:0}
+.log-grid small,.log-reason small{display:block;color:#7b887f;font-size:11px;margin-bottom:5px}
+.log-grid b{display:block;overflow-wrap:anywhere;font-size:14px}
+.log-reason{background:#fbfcfb;border-radius:12px;padding:11px 12px}
+.log-reason p{margin:0;line-height:1.5;overflow-wrap:anywhere}
+#logsList,#reportsList,#evaluationsList,#adminUserResults,#analysisList,#adminPros,#adminSupportList{max-height:calc(100vh - 220px);overflow-y:auto;padding:6px 8px 16px}
+#logsList::-webkit-scrollbar,#reportsList::-webkit-scrollbar,#evaluationsList::-webkit-scrollbar,#adminUserResults::-webkit-scrollbar,#analysisList::-webkit-scrollbar,#adminPros::-webkit-scrollbar,#adminSupportList::-webkit-scrollbar{width:8px}
+#logsList::-webkit-scrollbar-thumb,#reportsList::-webkit-scrollbar-thumb,#evaluationsList::-webkit-scrollbar-thumb,#adminUserResults::-webkit-scrollbar-thumb,#analysisList::-webkit-scrollbar-thumb,#adminPros::-webkit-scrollbar-thumb,#adminSupportList::-webkit-scrollbar-thumb{background:#cbd9d1;border-radius:99px}
+.professional-chat-list{max-height:calc(100vh - 210px);overflow-y:auto}
+.full-chat-messages{overflow-y:auto;min-height:0;height:0}
+.chat-conversation-panel{min-height:0}
+.professional-chat-workspace{height:calc(100vh - 190px);min-height:520px}
+.service-actions{min-height:58px;display:flex;align-items:center}
+.service-active{width:100%}
+.trust-device-option{display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border:1px solid #dfe9e3;border-radius:14px;background:#f8fbf9;margin:12px 0 15px;cursor:pointer;line-height:1.35}
+.trust-device-option input{position:absolute;opacity:0;pointer-events:none}
+.trust-check{width:22px;height:22px;border:2px solid #b9c9bf;border-radius:7px;display:grid;place-items:center;color:transparent;background:#fff;flex:none;font-weight:900}
+.trust-device-option:has(input:checked){border-color:#91c8a7;background:#eef9f2}
+.trust-device-option:has(input:checked) .trust-check{background:var(--green);border-color:var(--green);color:#fff}
+.trust-device-option b{display:block;font-size:13px}.trust-device-option small{display:block;color:#748078;margin-top:3px}
+.settings-card{max-width:900px!important;margin:0 auto!important}
+.client-content{overflow:hidden}
+@media(max-width:900px){.log-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.professional-chat-workspace{height:calc(100vh - 170px)}}
+@media(max-width:620px){.section-head{padding-left:0;padding-right:0}.chat-list-page{max-height:none}.professional-chat-workspace{height:auto;min-height:620px}.full-chat-messages{height:360px;min-height:360px}.log-grid{grid-template-columns:1fr}.log-card-top{align-items:flex-start;flex-direction:column}.report-row,.admin-application,.admin-user-row{align-items:flex-start;flex-wrap:wrap}.admin-user-actions{width:100%;justify-content:flex-start}#logsList,#reportsList,#evaluationsList,#adminUserResults,#analysisList,#adminPros,#adminSupportList{max-height:65vh}}
