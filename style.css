@@ -142,3 +142,48 @@ button,input,textarea,select{font:inherit}
 .client-content{overflow:hidden}
 @media(max-width:900px){.log-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.professional-chat-workspace{height:calc(100vh - 170px)}}
 @media(max-width:620px){.section-head{padding-left:0;padding-right:0}.chat-list-page{max-height:none}.professional-chat-workspace{height:auto;min-height:620px}.full-chat-messages{height:360px;min-height:360px}.log-grid{grid-template-columns:1fr}.log-card-top{align-items:flex-start;flex-direction:column}.report-row,.admin-application,.admin-user-row{align-items:flex-start;flex-wrap:wrap}.admin-user-actions{width:100%;justify-content:flex-start}#logsList,#reportsList,#evaluationsList,#adminUserResults,#analysisList,#adminPros,#adminSupportList{max-height:65vh}}
+
+/* Refinamento visual v4 */
+.trust-row{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.trust-row>span{display:inline-flex;align-items:center;gap:7px;line-height:1.2;white-space:nowrap}
+.trust-row .ui-icon{margin:0;vertical-align:middle;flex:none}
+#services>.section-head,#professionals>.section-head,#clientConversations>.section-head,#support>.section-head,#clientSettings>.section-head{width:min(1180px,calc(100% - 40px));box-sizing:border-box}
+#services>.category-grid,#professionals>.pro-grid{width:min(1180px,calc(100% - 40px));box-sizing:border-box}
+#clientConversations>.chat-list-page{width:min(1180px,calc(100% - 40px));box-sizing:border-box;background:#fff;border:1px solid var(--line);border-radius:22px;padding:18px 18px 24px;box-shadow:var(--shadow)}
+#support>.support-create{width:min(900px,calc(100% - 40px));box-sizing:border-box;padding:30px 34px;margin-top:4px}
+#support>div:last-child{width:min(1100px,calc(100% - 40px));box-sizing:border-box;background:#fff;border:1px solid var(--line);border-radius:22px;padding:26px 30px 30px;margin-top:24px;box-shadow:var(--shadow)}
+#support>div:last-child>.chat-list-page{max-height:calc(100vh - 390px);padding:10px 6px 12px}
+.professional-admin-card{margin-bottom:14px;padding:18px 20px!important}
+.professional-admin-card+ .professional-admin-card{margin-top:14px}
+.report-row{padding:18px 20px!important;margin-bottom:12px;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:var(--shadow-sm)}
+.report-row>div:first-child{gap:8px}
+.report-row .admin-user-actions{flex:0 0 auto}
+.verification-section{background:#fbfdfc;border:1px solid #e3ece6;border-radius:18px;padding:20px;margin:16px 0}
+.verification-section h3{margin:0 0 14px;font-size:16px}
+.analysis-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.analysis-grid>div{background:#fff;border:1px solid #e5ece7;border-radius:13px;padding:13px 14px;min-width:0}
+.analysis-grid b,.reference-admin b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#7a877f;margin-bottom:6px}
+.analysis-grid span{display:block;overflow-wrap:anywhere;line-height:1.45}
+.modal-subtitle{color:var(--muted);margin-top:-8px}
+.verification-description{margin-top:12px;background:#fff;border:1px solid #e5ece7;border-radius:13px;padding:13px 14px}
+.verification-description p{margin:7px 0 0;line-height:1.55;overflow-wrap:anywhere}
+.references-stack{display:grid;gap:10px}
+.reference-admin{background:#fff;border:1px solid #e5ece7;border-radius:14px;padding:13px 14px}
+.reference-admin>div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:start}
+.reference-admin>div b{margin:0;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink)}
+.reference-admin>div span{font-size:13px;color:#536159;white-space:nowrap}
+.reference-admin small{display:block;color:#718078;line-height:1.45;margin-top:7px;overflow-wrap:anywhere}
+.admin-user-row{margin-bottom:12px;padding:17px 18px!important}
+.admin-user-row+.admin-user-row{margin-top:12px}
+.admin-user-row>div:first-of-type{gap:7px}
+.admin-name-only{align-items:center}
+.master-only[style*="none"]{display:none!important}
+
+@media(max-width:700px){
+  .analysis-grid{grid-template-columns:1fr}
+  .reference-admin>div{grid-template-columns:1fr}
+  .reference-admin>div span{white-space:normal}
+  #services>.section-head,#professionals>.section-head,#clientConversations>.section-head,#support>.section-head,#clientSettings>.section-head,#services>.category-grid,#professionals>.pro-grid,#clientConversations>.chat-list-page,#support>.support-create,#support>div:last-child{width:min(100% - 24px,1180px)}
+  #support>.support-create{padding:24px 20px}
+  #support>div:last-child{padding:22px 18px}
+}
