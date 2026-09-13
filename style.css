@@ -187,3 +187,14 @@ button,input,textarea,select{font:inherit}
   #support>.support-create{padding:24px 20px}
   #support>div:last-child{padding:22px 18px}
 }
+.client-conversation-workspace{width:min(1180px,calc(100% - 40px));margin:0 auto;min-height:620px}
+.client-conversation-workspace .chat-inbox-panel{min-width:0}
+.client-conversation-workspace .chat-conversation-panel{min-width:0}
+#clientConversationList{overflow:auto}
+#clientChatMessages{min-height:330px}
+#proGrid>.empty-state{grid-column:1/-1;width:100%;box-sizing:border-box;margin:0 auto}
+@media(max-width:620px){.client-conversation-workspace{width:min(100% - 24px,1180px)} }
+
+/* Ajuste final do selo de verificação da tela inicial */
+.trust-row>span{background:#fff;border:1px solid var(--line);padding:9px 12px;border-radius:999px}
+.trust-row>span .ui-icon{background:transparent;border:0;padding:0;margin:0;width:auto;height:auto;border-radius:0;display:inline-flex;align-items:center;justify-content:center;color:var(--green);font-weight:900;line-height:1;box-shadow:none}
