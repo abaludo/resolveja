@@ -265,3 +265,9 @@ button,input,textarea,select{font:inherit}
 }
 .professional-note{margin:12px 0;padding:11px 13px;border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc;font-size:.94rem}.professional-note b{font-weight:700}.profile-note{margin:14px 0}.admin-note-create{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff;margin-bottom:18px}.admin-notes-list{display:grid;gap:12px}.admin-note-create select{width:100%;min-height:44px}.admin-note-create .btn{margin-top:6px}
 @media (max-width:700px){.professional-note{font-size:.9rem}.admin-note-create{padding:14px}.admin-note-create .form-grid-2{grid-template-columns:1fr}.admin-note-create .btn{width:100%}}
+
+/* V6 — triagem inteligente e mobile */
+.problem-finder-card{width:100%;max-width:980px;margin:0 auto 22px;box-sizing:border-box}
+.problem-finder-actions{display:flex;gap:10px;flex-wrap:wrap}
+.problem-suggestion{margin-top:14px}
+@media(max-width:700px){.problem-finder-card{margin-left:auto;margin-right:auto;padding:16px}.problem-finder-actions{display:grid;grid-template-columns:1fr}.problem-finder-actions .btn{width:100%;min-height:46px}.client-content,.client-layout{width:100%;box-sizing:border-box}.announcement-page-actions{display:flex;justify-content:center;width:100%;margin:0 auto 16px}.announcement-page-actions .btn{width:100%;max-width:420px}.announcements-list{width:100%;max-width:900px;margin:0 auto}.section-head{padding-left:14px;padding-right:14px}.section-head>div{min-width:0}.section-head h2{font-size:1.35rem;line-height:1.2}.problem-suggestion{font-size:.92rem;line-height:1.45}}
