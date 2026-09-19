@@ -263,3 +263,5 @@ button,input,textarea,select{font:inherit}
  .analysis-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
  .identity-review-grid{grid-template-columns:1fr!important}
 }
+.professional-note{margin:12px 0;padding:11px 13px;border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc;font-size:.94rem}.professional-note b{font-weight:700}.profile-note{margin:14px 0}.admin-note-create{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff;margin-bottom:18px}.admin-notes-list{display:grid;gap:12px}.admin-note-create select{width:100%;min-height:44px}.admin-note-create .btn{margin-top:6px}
+@media (max-width:700px){.professional-note{font-size:.9rem}.admin-note-create{padding:14px}.admin-note-create .form-grid-2{grid-template-columns:1fr}.admin-note-create .btn{width:100%}}
