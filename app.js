@@ -73,14 +73,53 @@ async function routeAuthenticatedUser(user){
   const {data:professional}=await sb.from('profissionais').select('id,nome,status,verificado,profissao').eq('usuario_id',user.id).maybeSingle();
   if(account?.tipo==='profissional'){
     if(professional?.status==='aprovado'&&professional?.verificado){window.resolveJaProfessional=professional;closeModal();enterProfessional(professional);return;}
-    await sb.auth.signOut();openModal(`<h2>Cadastro profissional em análise</h2><div class="notice">Seu cadastro profissional ainda não foi aprovado pela equipe. ${professional?.status==='rejeitado'?'O cadastro foi rejeitado e precisa ser revisado.':'Aguarde a autorização de um administrador ou da Conta Mestre.'}</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);return;
+    await sb.auth.signOut();openModal(`<h2>Cadastro profissional em análise</h2><div class="notice">Seu cadastro profissional ainda não foi aprovado pela equipe. Aguarde a autorização.</div><button class="btn btn-primary" style="width:100%" onclick="closeModal()">Entendi</button>`);return;
   }
   closeModal();enterClient(account?.nome||user.user_metadata?.nome||user.email?.split('@')[0]||'Cliente');
 }
 function enterClient(name){window.resolveJaProfessional=null;document.getElementById('publicNav').classList.add('hidden');document.getElementById('userNav').classList.remove('hidden');document.getElementById('welcome').textContent='Olá, '+String(name).split(' ')[0]+'!';document.querySelectorAll('.client-only').forEach(x=>x.style.display='');document.getElementById('professionalOnly')?.classList.add('hidden');showPage('clientHome');renderClientCategories();loadClientHome();loadClientConversations();loadPendingEvaluations();}
 async function loadClientHome(){if(!sb)return;const {data:{user}}=await sb.auth.getUser();if(!user)return;const {data:p}=await sb.from('usuarios').select('nome,cidade,estado,tipo').eq('id',user.id).maybeSingle();const n=p?.nome||user.email?.split('@')[0]||'Cliente';document.getElementById('clientWelcome').textContent='Olá, '+n.split(' ')[0]+'!';const i=document.getElementById('clientUserInfo');if(i)i.innerHTML=`<b>${esc(n)}</b><span>${esc(user.email||'')}</span>${p?.cidade?`<span>📍 ${esc(p.cidade)}${p.estado?', '+esc(p.estado):''}</span>`:''}`;}
-function suggestProblemCategory(text){const t=String(text||'').toLowerCase();const rules=[['Encanador',['pia','torneira','vazamento','vazando','cano','esgoto','ralo','chuveiro','descarga','água']],['Eletricista',['tomada','fiação','fio','disjuntor','energia','luz','lâmpada','curto','elétrica']],['Mecânico',['carro','motor','freio','embreagem','pneu','bateria','veículo','moto']],['Pintor',['pintura','parede','tinta','pintar','mofo']],['Pedreiro',['cimento','azulejo','reboco','piso','obra','construção']],['Técnico de informática',['computador','pc','notebook','impressora','internet','wifi','wi-fi']]];for(const [cat,words] of rules){if(words.some(w=>t.includes(w)))return cat;}const best=categories.find(c=>t.includes(c[1].toLowerCase())||t.includes(c[2].toLowerCase()));return best?.[1]||null;}
-function findProfessionalForProblem(){const text=document.getElementById('clientProblemInput')?.value.trim(),box=document.getElementById('problemSuggestion');if(!text){if(box){box.textContent='Descreva o problema primeiro.';box.classList.remove('hidden');}return;}const cat=suggestProblemCategory(text);if(box){box.innerHTML=cat?`<b>Possível área:</b> ${esc(cat)}. Procurando profissionais dessa área...`:'<b>Não consegui identificar a área com segurança.</b> Você pode publicar um pedido para profissionais encontrarem você.';box.classList.remove('hidden');}if(cat)openProfessionals(cat);else openAnnouncementModal(text);}
+function normalizeProblemText(text){return String(text||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,' ');}
+function analyzeProblem(text){
+  const t=normalizeProblemText(text);
+  const rules=[
+    ['Encanador',3,['pia','torneira','vazamento','vazando','cano','esgoto','ralo','chuveiro','descarga','agua','entupimento','entupida','entupido','pressao da agua']],
+    ['Eletricista',3,['tomada','fiacao','fio','disjuntor','energia','luz','lampada','curto','eletrica','eletrico','queda de energia']],
+    ['Mecânico',3,['carro','motor','freio','embreagem','pneu','bateria','veiculo','moto','automovel','embreagem']],
+    ['Pintor',3,['pintura','tinta','pintar','parede descascando','parede manchada','parede mofada','cor da parede']],
+    ['Pedreiro',3,['parede oca','parede rachada','parede rachando','trinca','rachadura','reboco','cimento','alvenaria','parede solta','buraco na parede','piso quebrado','contrapiso','obra','construcao']],
+    ['Azulejista',3,['azulejo solto','azulejo quebrado','revestimento solto','rejunte']],
+    ['Gesseiro',3,['gesso','forro de gesso','teto de gesso']],
+    ['Telhadista',3,['telhado','telha','goteira','calha']],
+    ['Marceneiro',3,['moveis','madeira','armario','guarda roupa','gaveta','mesa de madeira']],
+    ['Montador de móveis',3,['montar movel','montagem de movel','montar armario','montar guarda roupa']],
+    ['Técnico de informática',3,['computador','pc','notebook','impressora','internet','wifi','wi fi','rede','windows']],
+    ['Técnico de celular',3,['celular','smartphone','iphone','android','tela do celular','bateria do celular']],
+    ['Jardineiro',3,['jardim','grama','planta','poda','arvore','mato']],
+    ['Dedetizador',3,['barata','baratas','rato','ratos','cupim','formiga','praga','inseto','dedetizacao']],
+    ['Higienização de sofá',3,['sofa','estofado','estofados']],
+    ['Vidraceiro',3,['vidro','janela quebrada','box quebrado']],
+    ['Serralheiro',3,['portao','grade','ferro','metal','solda']],
+    ['Instalador de portas',3,['porta','fechadura da porta']],
+    ['Instalador de janelas',3,['janela','esquadria']],
+    ['Técnico de ar-condicionado',3,['ar condicionado','ar condicionado parou','climatizacao']],
+    ['Manutenção de piscina',3,['piscina','bomba da piscina']],
+    ['Limpeza pós-obra',3,['limpeza pos obra','sujeira de obra']],
+    ['Diarista',3,['limpar casa','limpeza da casa','faxina','casa suja']]
+  ];
+  const scored=rules.map(([cat,weight,words])=>({cat,score:words.reduce((n,w)=>n+(t.includes(w)?weight:0),0)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+  if(!scored.length){
+    const best=categories.find(c=>t.includes(normalizeProblemText(c[1]))||t.includes(normalizeProblemText(c[2])));
+    return best?{category:best[1],confidence:'media',reason:'correspondência direta'}:null;
+  }
+  const top=scored[0], second=scored[1];
+  if(top.category==='Pintor' && /(oco|oca|rachad|trinca|solt|buraco|reboco)/.test(t)) return {category:'Pedreiro',confidence:'alta',reason:'o problema indica estrutura/alvenaria, não pintura'};
+  if(second && second.score===top.score) return {category:top.category,confidence:'baixa',alternatives:scored.slice(0,3).map(x=>x.cat)};
+  return {category:top.category,confidence:top.score>=6?'alta':top.score>=3?'media':'baixa',alternatives:scored.slice(1,3).map(x=>x.cat)};
+}
+function suggestProblemCategory(text){return analyzeProblem(text)?.category||null;}
+
+function findProfessionalForProblem(){const text=document.getElementById('clientProblemInput')?.value.trim(),box=document.getElementById('problemSuggestion');if(!text){if(box){box.textContent='Descreva o problema primeiro.';box.classList.remove('hidden');}return;}const result=analyzeProblem(text);if(box){box.innerHTML=result?`<div><b>Análise inteligente:</b> o problema parece ser de <strong>${esc(result.category)}</strong>.</div><small>${result.confidence==='alta'?'Identificação com alta confiança.':result.confidence==='media'?'Identificação provável.':'Ainda há alguma dúvida; você também pode publicar o problema para receber interessados.'}</small>`:'<b>Não consegui identificar o profissional com segurança.</b><br><small>Você pode publicar o problema e deixar profissionais interessados entrarem em contato.</small>';box.classList.remove('hidden');}if(result?.category)openProfessionals(result.category);else openAnnouncementModal(text);}
 function openAnnouncementModal(prefill=''){openModal(`<h2>Pedir um profissional</h2><p>Explique o que está acontecendo. Você não precisa saber qual profissional resolve o problema.</p><div class="form-group"><label>Seu problema</label><textarea id="announcementProblem" rows="6" maxlength="1600" placeholder="Ex.: Minha pia está vazando...">${esc(prefill)}</textarea></div><div class="form-group"><label>Fotos (opcional)</label><input id="announcementPhotos" type="file" accept="image/*" multiple capture="environment"><small class="field-help">Até 5 fotos.</small></div><div id="announcementError" class="notice hidden"></div><button class="btn btn-primary" style="width:100%" onclick="createAnnouncement()">Publicar pedido</button>`);}
 async function createAnnouncement(){const text=document.getElementById('announcementProblem')?.value.trim(),e=document.getElementById('announcementError'),files=[...(document.getElementById('announcementPhotos')?.files||[])];if(!text){e.textContent='Descreva o problema antes de publicar.';e.classList.remove('hidden');return;}if(files.length>5){e.textContent='Envie no máximo 5 fotos.';e.classList.remove('hidden');return;}const {data:{user}}=await sb.auth.getUser();if(!user){login();return;}const category=suggestProblemCategory(text);const {data:a,error}=await sb.from('pedidos_profissionais').insert({cliente_id:user.id,problema:text,categoria_sugerida:category,status:'aberto'}).select('id').single();if(error){e.textContent=error.message;e.classList.remove('hidden');return;}for(const f of files){const ext=(f.name.split('.').pop()||'jpg').toLowerCase(),path=`${user.id}/${a.id}/${crypto.randomUUID()}.${ext}`,up=await sb.storage.from('resolveja-pedidos').upload(path,f,{contentType:f.type||'image/jpeg',upsert:false});if(!up.error)await sb.from('pedido_profissional_fotos').insert({pedido_id:a.id,caminho:path});}closeModal();openClientAnnouncements();}
 async function openClientAnnouncements(){showPage('clientAnnouncements');await loadClientAnnouncements();}
