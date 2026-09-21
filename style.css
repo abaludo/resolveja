@@ -271,3 +271,14 @@ button,input,textarea,select{font:inherit}
 .problem-finder-actions{display:flex;gap:10px;flex-wrap:wrap}
 .problem-suggestion{margin-top:14px}
 @media(max-width:700px){.problem-finder-card{margin-left:auto;margin-right:auto;padding:16px}.problem-finder-actions{display:grid;grid-template-columns:1fr}.problem-finder-actions .btn{width:100%;min-height:46px}.client-content,.client-layout{width:100%;box-sizing:border-box}.announcement-page-actions{display:flex;justify-content:center;width:100%;margin:0 auto 16px}.announcement-page-actions .btn{width:100%;max-width:420px}.announcements-list{width:100%;max-width:900px;margin:0 auto}.section-head{padding-left:14px;padding-right:14px}.section-head>div{min-width:0}.section-head h2{font-size:1.35rem;line-height:1.2}.problem-suggestion{font-size:.92rem;line-height:1.45}}
+
+/* V10 — centralização da área Pedir Profissional e painel de profissionais */
+#clientAnnouncements{width:100%;box-sizing:border-box;padding:0 24px 40px;}
+#clientAnnouncements>.section-head,#clientAnnouncements>.announcement-page-actions,#clientAnnouncements>.announcements-list{width:min(100%,1180px);margin-left:auto;margin-right:auto;box-sizing:border-box;}
+#clientAnnouncements>.announcement-page-actions{display:flex;justify-content:center;align-items:center;margin-top:8px;margin-bottom:22px;}
+#clientAnnouncements>.announcement-page-actions .btn{width:auto;min-width:220px;}
+.professional-admin-card{display:flex!important;justify-content:space-between;align-items:center;gap:20px;}
+.professional-admin-main{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.professional-admin-main span,.professional-admin-main small{display:block;color:#6f7e75;overflow-wrap:anywhere;}
+.professional-admin-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;flex:none;}
+@media(max-width:700px){#clientAnnouncements{padding:0 14px 30px;}#clientAnnouncements>.section-head,#clientAnnouncements>.announcement-page-actions,#clientAnnouncements>.announcements-list{width:100%;}.announcement-page-actions{padding:0 2px;}.announcement-page-actions .btn{width:100%;min-width:0;}.professional-admin-card{flex-direction:column;align-items:stretch;}.professional-admin-actions{justify-content:stretch;}.professional-admin-actions .btn{flex:1 1 100%;}}
